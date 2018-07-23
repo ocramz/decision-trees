@@ -87,6 +87,19 @@ entropyR_ ps = negate . sum $ entropyReg <$> ps where
 -- Dataset k (t a) -> (a -> Bool)
 
 
+splitFunction :: (a -> IM.Key) -> (a -> a -> Bool) -> Dataset k [a] -> (a -> Bool)
+splitFunction kf decision ds = decision thr
+  where
+    (thr, _) = F.maximumBy (comparing snd) $ tabulateSplitsR kf decision ds
+
+tabulateSplitsR :: (Ord h, Floating h) =>
+                   (a -> IM.Key)
+                -> (a -> a -> Bool)
+                -> Dataset k [a]
+                -> IM.IntMap (a, h)
+tabulateSplitsR kf decision ds = IM.map mf (uniques kf ds) where
+  mf x = (x, infoGainR (decision x) ds)
+
 tabulateSplits :: (Ord h, Floating h) =>
                   (a -> IM.Key)
                -> (a -> a -> Bool)  -- ^ Decision function (first argument is the decision boundary)
@@ -103,13 +116,9 @@ tabulateSplits kf decision ds = IM.map mf (uniques kf ds) where
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
 infoGainR :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> h
 infoGainR p ds = h0 - (pl * hl + pr * hr) where
-    sz = fromIntegral . size 
-    (dsl, dsr) = partition p ds
-    (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
+    (dsl, pl, dsr, pr) = splitDataset p ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)    
-    pl = sl / s0
-    pr = sr / s0
-    
+
 -- | Information gain due to a dataset split
 infoGain :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> Maybe h
 infoGain p ds = do
@@ -118,11 +127,19 @@ infoGain p ds = do
   hr <- entropy dsr
   pure $ h0 - (pl * hl + pr * hr)
   where
-    sz = fromIntegral . size 
-    (dsl, dsr) = partition p ds
-    (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
-    pl = sl / s0
-    pr = sr / s0
+    (dsl, pl, dsr, pr) = splitDataset p ds
+
+-- | helper function for 'infoGain' and 'infoGainR'
+splitDataset :: Fractional d =>
+                    (a -> Bool)
+                 -> Dataset k [a]
+                 -> (Dataset k [a], d, Dataset k [a], d)
+splitDataset p ds = (dsl, pl, dsr, pr) where
+  sz = fromIntegral . size 
+  (dsl, dsr) = partition p ds
+  (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
+  pl = sl / s0
+  pr = sr / s0
 
 partition :: Functor f => (a -> Bool) -> f [a] -> (f [a], f [a])
 partition p = filterF p &&& filterF (not . p)
