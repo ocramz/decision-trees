@@ -1,63 +1,52 @@
+{-# language DeriveFunctor #-}
 module Numeric.Classification.DecisionTrees where
 
+import Prelude hiding (lookup)
 import qualified Data.Map as M
 
-
+import Data.Function (on)
 
 -- | Computes the entropy of a Dataset
 --
 -- the Entropy is defined as: sum (p_i * log_2 p_i)
 -- where p_i = |{ x | x has Label i}|/|Dataset|
 
-newtype Dataset k a = Dataset { unDataset :: M.Map k [a] } deriving (Eq, Show)
+newtype Dataset k a = Dataset { unDataset :: M.Map k a } deriving (Eq, Show, Functor)
+
+instance Foldable (Dataset k) where
+  foldMap f (Dataset dm) = foldMap f dm
+
+instance Traversable (Dataset k) where
+  traverse f (Dataset dm) = Dataset <$> traverse f dm
 
 empty :: Dataset k a
 empty = Dataset M.empty
 
-insert :: Ord k => k -> [a] -> Dataset k a -> Dataset k a
+insert :: Ord k => k -> a -> Dataset k a -> Dataset k a
 insert k ls (Dataset ds) = Dataset $ M.insert k ls ds
 
+fromList :: Ord k => [(k, a)] -> Dataset k a
+fromList ld = Dataset $ M.fromList ld
+
+lookup :: Ord k => k -> Dataset k a -> Maybe a
+lookup k (Dataset ds) = M.lookup k ds
+
 -- | Size of the dataset
-size :: Dataset k a -> Int
+size :: Foldable t => Dataset k (t a) -> Int
 size (Dataset ds) = M.foldl' (\acc l -> acc + length l) 0 ds
 
-data Label a k = Label (a -> k) (k -> Bool)
+-- | Size of the individual classes (Nothing if the class has no datapoints)
+sizeClasses :: (Foldable t, Num n) => Dataset k (t a) -> M.Map k n
+sizeClasses (Dataset ds) = (fromIntegral . length) <$> ds
 
--- lab0 = Label $ \x -> if x > 0 then 1 else 0
+probClasses :: (Fractional b, Foldable t) => Dataset k (t a) -> M.Map k b
+probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
 
-
-
--- | Partition a dataset accoring to a list of labeling functions
-partition :: Ord k => [Label a k] -> [a] -> Dataset k a -> Dataset k a
-partition [] _ ds = ds
-partition (lab0:ls) xs ds
-  | null xs = ds
-  | otherwise = let
-      (ds', neg) = partition1 lab0 xs ds
-      in partition ls neg ds' 
-
-partition1 :: (Ord k, Foldable t) =>
-              Label a k
-           -> t a
-           -> Dataset k a
-           -> (Dataset k a, [a])
-partition1 (Label pf p) xs ds
-  | null pos = (ds, neg) 
-  | otherwise = (insert k pos ds, neg)
-  where
-  k = pf $ head pos
-  (pos, neg) = foldr ins ([], []) xs
-  ins x (l, r) | p (pf x)  = (x : l, r)
-               | otherwise = (l, x : r)
-
--- partition :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
--- partition p = foldr ins ([], []) where
---   ins x (l, r) | p x = (x : l, r)
---                | otherwise = (l, x : r)
+entropy :: (Traversable t, Ord a, Floating a) => t a -> Maybe a
+entropy ps = negate . sum <$> traverse entropy1 ps where
+  entropy1 :: (Ord a, Floating a) => a -> Maybe a
+  entropy1 p | p > 0 = Just ( p * logBase 2 p)
+             | otherwise = Nothing
 
 
 
-
-
--- groupWith getKey singleton fuse = 
---     foldl (\m x -> M.insertWith fuse (getKey x) (singleton x) m) M.empty
