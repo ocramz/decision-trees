@@ -1,7 +1,7 @@
 {-# language DeriveFunctor #-}
 module Numeric.Classification.DecisionTrees where
 
-import Control.Arrow ((***), (&&&))
+import Control.Arrow ((&&&))
 import Prelude hiding (lookup)
 import qualified Prelude as P (filter)
 
@@ -13,33 +13,6 @@ import qualified Data.IntMap as IM
 
 import Data.Function (on)
 import Data.Ord (comparing)
-
--- -- | Nested map representation
-
--- newtype D k a = D {unD :: M.Map k (IM.IntMap a) } deriving (Eq, Show, Functor)
-
--- emptyD :: D k a
--- emptyD = D M.empty
-
--- -- insertLabeled :: Ord k => k -> [a] -> D k a -> D k a
--- -- insertLabeled k x (D dm) = D $ M.insert k xl dm where
--- --   xl = indexed x
-
--- fromListD :: Ord k => [(k, [a])] -> D k a
--- fromListD lx = D $ indexed <$> M.fromList lx
-
--- unionD :: D k a -> IM.IntMap a
--- unionD = foldrD IM.union IM.empty
-
--- foldrD :: (IM.IntMap a -> b -> b) -> b -> D k a -> b
--- foldrD ffold z (D mm) = foldr ffold z mm
-
--- indexed :: [a] -> IM.IntMap a
--- indexed ll = IM.fromList $ zip [0..] ll
-
--- lookupD :: Ord k => k -> IM.Key -> D k b -> Maybe b
--- lookupD ki kj (D mm) = M.lookup ki mm >>= IM.lookup kj
-
 
 
 -- | Map representation
@@ -103,21 +76,34 @@ entropy_ ps = negate . sum <$> traverse entropyD ps where
 
 -- Dataset k (t a) -> (a -> Bool)
 
-tabulateSplits :: (Floating h, Ord h, Ord a) =>
-                  (a -> IM.Key)
-               -> Dataset k [a]
-               -> IM.IntMap (Maybe (a, h, h))
-tabulateSplits kf ds = IM.map mf (uniques kf ds) where
-  mf x = do
-    (h1, h2) <- splitEntropies (> x) ds
-    pure (x, h1, h2)
 
-splitEntropies ::
-  (Ord h, Floating h) =>
-     (a -> Bool)       -- ^ Splitting function
-  -> Dataset k [a]
-  -> Maybe (h, h)
-splitEntropies p ds = insideOut2 $ both entropy (partition p ds)
+tabulateSplits :: (Ord h, Floating h) =>
+                  (a -> IM.Key)
+               -> (a -> a -> Bool)  -- ^ Decision function (first argument is the decision boundary)
+               -> Dataset k [a]
+               -> IM.IntMap (Maybe (a, h))
+tabulateSplits kf decision ds = IM.map mf (uniques kf ds) where
+  mf x = do
+    -- let decx = decision x
+    ig <- infoGain (decision x) ds
+    pure (x, ig)
+    -- ig <- infoGain decx ds
+    -- pure (decx, ig)        -- returns the decision function itself (decx)
+
+
+-- | Information gain due to a dataset split
+infoGain :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> Maybe h
+infoGain p ds = do
+  h0 <- entropy ds
+  hl <- entropy dsl
+  hr <- entropy dsr
+  pure $ h0 - (pl * hl + pr * hr)
+  where
+    sz = fromIntegral . size 
+    (dsl, dsr) = partition p ds
+    (s0, sl, sr) = (sz dsl, sz dsr, sz ds)
+    pl = sl / s0
+    pr = sr / s0
 
 partition :: Functor f => (a -> Bool) -> f [a] -> (f [a], f [a])
 partition p = filterF p &&& filterF (not . p)
@@ -131,10 +117,10 @@ fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
 
 -- * Little abstract friends
 
-insideOut2 :: (Maybe a, Maybe b) -> Maybe (a, b)
-insideOut2 mm = case mm of
-  (Just a, Just b) -> Just (a, b)
-  _ -> Nothing
+-- insideOut2 :: (Maybe a, Maybe b) -> Maybe (a, b)
+-- insideOut2 mm = case mm of
+--   (Just a, Just b) -> Just (a, b)
+--   _ -> Nothing
 
 left :: (b -> c) -> b -> (c, b)
 left f = f &&& id
