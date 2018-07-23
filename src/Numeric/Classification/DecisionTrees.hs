@@ -101,7 +101,7 @@ infoGain p ds = do
   where
     sz = fromIntegral . size 
     (dsl, dsr) = partition p ds
-    (s0, sl, sr) = (sz dsl, sz dsr, sz ds)
+    (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
     pl = sl / s0
     pr = sr / s0
 
