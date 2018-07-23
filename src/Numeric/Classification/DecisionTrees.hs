@@ -40,14 +40,14 @@ fromList ld = Dataset $ M.fromList ld
 toList :: Dataset k a -> [(k, a)]
 toList (Dataset ds) = M.toList ds
 
-lookup :: Ord k => k -> Dataset k a -> Maybe a
-lookup k (Dataset ds) = M.lookup k ds
+-- lookup :: Ord k => k -> Dataset k a -> Maybe a
+-- lookup k (Dataset ds) = M.lookup k ds
 
 -- | Size of the dataset
 size :: Foldable t => Dataset k (t a) -> Int
 size (Dataset ds) = M.foldl' (\acc l -> acc + length l) 0 ds
 
--- | Size of the individual classes (Nothing if the class has no datapoints)
+-- | Size of the individual classes 
 sizeClasses :: (Foldable t, Num n) => Dataset k (t a) -> M.Map k n
 sizeClasses (Dataset ds) = (fromIntegral . length) <$> ds
 
@@ -70,6 +70,16 @@ entropy_ ps = negate . sum <$> traverse entropyD ps where
   entropyD p | p > 0 = Just ( p * logBase 2 p)
              | otherwise = Nothing
 
+-- | Differential entropy has a singularity at 0 but converges ~ linearly to 0 for small positive values.
+entropyR :: (Foldable t, Ord h, Floating h) => Dataset k (t a) -> h
+entropyR = entropyR_ . probClasses
+
+entropyR_ :: (Foldable t, Functor t, Ord c, Floating c) => t c -> c
+entropyR_ ps = negate . sum $ entropyReg <$> ps where
+  entropyReg p | p > 0 =  p * logBase 2 p
+               | otherwise = 0
+
+
 
 
 -- | Split decision: find feature value that maximizes the entropy drop (i.e the information gain, or KL divergence)
@@ -90,7 +100,16 @@ tabulateSplits kf decision ds = IM.map mf (uniques kf ds) where
     -- ig <- infoGain decx ds
     -- pure (decx, ig)        -- returns the decision function itself (decx)
 
-
+-- | Information gain due to a dataset split (regularized, H(0) := 0)
+infoGainR :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> h
+infoGainR p ds = h0 - (pl * hl + pr * hr) where
+    sz = fromIntegral . size 
+    (dsl, dsr) = partition p ds
+    (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
+    (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)    
+    pl = sl / s0
+    pr = sr / s0
+    
 -- | Information gain due to a dataset split
 infoGain :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> Maybe h
 infoGain p ds = do
