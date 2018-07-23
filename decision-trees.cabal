@@ -21,6 +21,7 @@ library
   exposed-modules:     Numeric.Classification.DecisionTrees
   build-depends:       base >= 4.7 && < 5
                      , containers
+                     , exceptions
 
 -- executable decision-trees
 --   default-language:    Haskell2010
