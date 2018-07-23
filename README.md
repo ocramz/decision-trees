@@ -2,4 +2,8 @@
 
 [![Build Status](https://travis-ci.org/ocramz/decision-trees.png)](https://travis-ci.org/ocramz/decision-trees)
 
-TODO Description.
+Experiments with decision trees (representation, training and inference)
+
+## Algorithms
+
+* ID3
