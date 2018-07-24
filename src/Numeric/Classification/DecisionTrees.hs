@@ -14,9 +14,12 @@ import qualified Data.IntMap as IM
 import Data.Function (on)
 import Data.Ord (comparing)
 
+import Data.Typeable
+import Control.Monad.Catch (MonadThrow(..))
+import Control.Exception (Exception(..))
 
--- | Map representation
 
+-- | Labeled dataset represented as a 'Map'. The map keys are the class labels
 newtype Dataset k a = Dataset { unDataset :: M.Map k a } deriving (Eq, Show, Functor)
 
 instance Foldable (Dataset k) where
@@ -52,23 +55,24 @@ sizeClasses :: (Foldable t, Num n) => Dataset k (t a) -> M.Map k n
 sizeClasses (Dataset ds) = (fromIntegral . length) <$> ds
 
 
+-- | Empirical class probabilities
+probClasses :: (Fractional b, Foldable t) => Dataset k (t a) -> M.Map k b
+probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
+
 -- | Entropy of a Dataset
 --
 -- Entropy is defined as: sum (p_i * log_2 p_i)
 -- where p_i = |{ x | x has Label i}|/|Dataset|
 --
 -- NB: returns Nothing if any class contains 0 points (i.e. if the integration support contains any 0-measure subsets)
-entropy :: (Foldable t, Ord h, Floating h) => Dataset k (t a) -> Maybe h
+entropy :: (Foldable t, Ord h, Floating h, MonadThrow m) => Dataset k (t a) -> m h
 entropy = entropy_ . probClasses
 
-probClasses :: (Fractional b, Foldable t) => Dataset k (t a) -> M.Map k b
-probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
-
-entropy_ :: (Traversable t, Ord a, Floating a) => t a -> Maybe a
+entropy_ :: (Traversable t, Ord a, Floating a, MonadThrow m) => t a -> m a
 entropy_ ps = negate . sum <$> traverse entropyD ps where
-  entropyD :: (Ord a, Floating a) => a -> Maybe a
-  entropyD p | p > 0 = Just ( p * logBase 2 p)
-             | otherwise = Nothing
+  -- entropyD :: (Ord a, Floating a) => a -> Maybe a
+  entropyD p | p > 0 = pure ( p * logBase 2 p)
+             | otherwise = throwM $ ZeroProbabilityE "Zero probability bin"
 
 -- | Differential entropy has a singularity at 0 but converges ~ linearly to 0 for small positive values.
 entropyR :: (Foldable t, Ord h, Floating h) => Dataset k (t a) -> h
@@ -87,6 +91,8 @@ entropyR_ ps = negate . sum $ entropyReg <$> ps where
 -- Dataset k (t a) -> (a -> Bool)
 
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
+--
+-- The decision thresholds can be obtained from the 'uniques' function
 maxInfoGainSplit :: (Foldable f, Functor f) =>
                  f t -- ^ Decision thresholds
               -> (t -> a -> Bool) -- ^ Comparison function
@@ -95,6 +101,9 @@ maxInfoGainSplit :: (Foldable f, Functor f) =>
 maxInfoGainSplit vals decision ds = decision thr
   where
     (thr, _) = F.maximumBy (comparing snd) $ tabulateSplitsR vals decision ds
+
+-- bisect p mi ma x0 = undefined where
+--   (pmi, pma) = (p mi, p ma)
 
 
 tabulateSplitsR :: (Functor f, Ord ig, Floating ig) =>
@@ -112,15 +121,15 @@ infoGainR p ds = h0 - (pl * hl + pr * hr) where
     (dsl, pl, dsr, pr) = splitDataset p ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)    
 
--- | Information gain due to a dataset split
-infoGain :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> Maybe h
-infoGain p ds = do
-  h0 <- entropy ds
-  hl <- entropy dsl
-  hr <- entropy dsr
-  pure $ h0 - (pl * hl + pr * hr)
-  where
-    (dsl, pl, dsr, pr) = splitDataset p ds
+-- -- | Information gain due to a dataset split
+-- infoGain :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> Maybe h
+-- infoGain p ds = do
+--   h0 <- entropy ds
+--   hl <- entropy dsl
+--   hr <- entropy dsr
+--   pure $ h0 - (pl * hl + pr * hr)
+--   where
+--     (dsl, pl, dsr, pr) = splitDataset p ds
 
 -- | helper function for 'infoGain' and 'infoGainR'
 splitDataset :: Fractional d =>
@@ -156,3 +165,12 @@ left f = f &&& id
 
 both :: Bifunctor p => (a -> d) -> p a a -> p d d
 both f = bimap f f
+
+
+
+
+-- * Exceptions
+
+data ValueException = ZeroProbabilityE String deriving (Eq, Show, Typeable)
+
+instance Exception ValueException 
