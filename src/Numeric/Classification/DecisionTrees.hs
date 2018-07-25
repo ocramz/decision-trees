@@ -123,6 +123,16 @@ maxInfoGainSplit_ tvals decision k ds = decision tstar
     mf t = (t, infoGainR (decision t) k ds)
 
 
+-- maxInfoGainSplit' tkvals decision k ds = (tstar, kstar) -- decision tstar
+--   where
+--     (tstar, kstar, _) = F.maximumBy (comparing third3) $ D.imap mf tkvals 
+--     mf k t = (t, k, infoGainR (decision t) k ds)
+
+-- asdf tkvals decision ds = D.imap mf `map` tkvals where
+--   mf k t = (t, k, infoGainR (decision t) k ds)
+
+third3 (_, _, c) = c
+
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
 infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
