@@ -19,6 +19,7 @@ library
   ghc-options:         -Wall
   hs-source-dirs:      src
   exposed-modules:     Numeric.Classification.DecisionTrees
+  other-modules:       Numeric.Classification.Internal.Datum
   build-depends:       base >= 4.7 && < 5
                      , containers
                      , exceptions
