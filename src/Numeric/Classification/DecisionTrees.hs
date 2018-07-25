@@ -16,7 +16,9 @@ import Data.Ord (comparing)
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Exception (Exception(..))
 -- import Data.Functor.Compose
-import Numeric.Classification.Internal.Datum 
+import Numeric.Classification.Internal.Datum (X, splitAttrP)
+import qualified Numeric.Classification.Internal.Datum as X
+
 import Numeric.Classification.Exceptions
 
 

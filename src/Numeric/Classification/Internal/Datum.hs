@@ -40,14 +40,17 @@ foldrWithKey f z (X mm) = M.foldrWithKey f z mm
 foldlWithKey' :: (a -> j -> b -> a) -> a -> X j b -> a
 foldlWithKey' f z (X mm) = M.foldlWithKey' f z mm
 
+union :: Ord j => X j a -> X j a -> X j a
+union (X m1) (X m2) = X $ M.union m1 m2
+
 unionWithKey :: Ord j => (j -> a -> a -> a) -> X j a -> X j a -> X j a
 unionWithKey f (X m1) (X m2) = X $ M.unionWithKey f m1 m2
 
 fromList :: Ord j => [(j, a)] -> X j a 
 fromList = X . M.fromList
 
-toList :: X j a -> [a]
-toList = F.toList
+toList :: X j a -> [(j, a)]
+toList (X m) = M.toList m
 
 
 
