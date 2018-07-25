@@ -142,8 +142,8 @@ infoGainR :: (Ord j, Ord k, Ord h, Floating h) =>
           -> j
           -> Dataset k [X j a]
           -> h
-infoGainR p k ds = h0 - (pl * hl + pr * hr) where
-    (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
+infoGainR p j ds = h0 - (pl * hl + pr * hr) where
+    (dsl, pl, dsr, pr) = splitDatasetAtAttr p j ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
 
 
@@ -153,26 +153,40 @@ splitDatasetAtAttr :: (Fractional n, Ord j, Ord k) =>
                    -> j
                    -> Dataset k [X j a]
                    -> (Dataset k [X j a], n, Dataset k [X j a], n)  
-splitDatasetAtAttr p k ds = (dsl, pl, dsr, pr) where
+splitDatasetAtAttr p j ds = (dsl, pl, dsr, pr) where
   sz = fromIntegral . size 
-  (dsl, dsr) = partition (splitAttrP p k) ds
+  (dsl, dsr) = partition p j ds
   (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
   pl = sl / s0
   pr = sr / s0 
 
 -- | Partition a Dataset in two, according to a decision function
-partition :: (Ord k, Foldable t) =>
-             (a -> Bool)  -- ^ Decision function (element-level)
-          -> Dataset k (t a)
-          -> (Dataset k [a], Dataset k [a])  
-partition p ds@Dataset{} = foldrWithKey insf (empty, empty) ds where
+--
+-- e.g. "is the j'th component of datum X_i larger than threshold t ?" 
+partition :: (Foldable t, Ord k, Ord j) =>
+              (a -> Bool) -- ^ Decision function (element-level)
+           -> j           -- ^ Feature index
+           -> Dataset k (t (X j a))
+           -> (Dataset k [X j a], Dataset k [X j a])
+partition p j ds@Dataset{} = foldrWithKey insf (empty, empty) ds where
   insf k lrow (l, r) = (insert k lp l, insert k rp r) where    
-    (lp, rp) = partition1 p lrow
+    (lp, rp) = partition1_ p j lrow
+
+partition1_ :: (Foldable t, Ord j) =>
+               (a -> Bool)
+            -> j
+            -> t (X j a)
+            -> ([X j a], [X j a])
+partition1_ p k = partition1 (splitAttrP p k)
 
 partition1 :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
 partition1 p = foldr ins ([], [])  where
   ins x (l, r) | p x = (x : l, r)
                | otherwise = (l , x : r)
+
+
+
+-- * Unique dataset entries
 
 uniquesEnum :: (Foldable t, Enum a) => Dataset k (t a) -> IM.IntMap a
 uniquesEnum = uniques fromEnum
