@@ -107,47 +107,22 @@ type BoolTree = TTree Bool
 
 -- Dataset k (t a) -> (a -> Bool)
 
+
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
-maxInfoGainSplit_ :: (Ord j, Ord k, Foldable f, Functor f) =>
-                     f t  -- ^ Decision thresholds
-                  -> (t -> a -> Bool)  -- ^ Comparison function
-                  -> j
-                  -> Dataset k [X j a]
-                  -> (a -> Bool) -- ^ Dataset splitting decision function 
-maxInfoGainSplit_ tvals decision k ds = decision tstar
-  where
-    (tstar, _) = F.maximumBy (comparing snd) $ mf <$> tvals 
-    mf t = (t, infoGainR (decision t) k ds)
-
-
--- maxInfoGainSplit' tkvals decision k ds = (tstar, kstar) -- decision tstar
---   where
---     (tstar, kstar, _) = F.maximumBy (comparing third3) $ D.imap mf tkvals 
---     mf k t = (t, k, infoGainR (decision t) k ds)
-
-
--- -- asd :: (Floating b, D.Datum d, Ord b, Ord k) =>
--- --      (a -> a -> Bool) -> Dataset k [d a] -> Dataset k [d b]
--- asd decision ds = map (D.imap g) <$> ds where
---   g k t = (k, t, infoGainR (decision t) k ds)
-
-third3 (_, _, c) = c
-
-maxInfoGainSplit' p ts js ds = (tstar, jstar) where
-  (tstar, jstar, _) = F.maximumBy (comparing third3) $ tabulateInfoGain p ts js ds
-
-
-tabulateInfoGain :: (Floating ig, Ord ig, Ord j, Ord k) =>
-                    (t -> a -> Bool)
-                 -> [t]
-                 -> [j]
+--
+-- tjs = [(t, j) | t <- ts, j <- js]
+maxInfoGainSplit :: (Ord j, Ord k) =>
+                    [(t, j)]          -- ^ (Decision thresholds, feature indices)
+                 -> (t -> a -> Bool)  -- ^ Comparison function
                  -> Dataset k [X j a]
-                 -> [(t, j, ig)]
-tabulateInfoGain decision ts js ds = map infog tjs where
+                 -> (t, j)            -- ^ Optimal dataset splitting (threshold, feature index)
+maxInfoGainSplit tjs decision ds = (tstar, jstar) where
+  (tstar, jstar, _) = F.maximumBy (comparing third3) $ infog <$> tjs 
   infog (t, j) = (t, j, infoGainR (decision t) j ds)
-  tjs = [(t, j) | t <- ts, j <- js]
+
+  
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
 infoGainR :: (Ord j, Ord k, Ord h, Floating h) =>
@@ -223,8 +198,8 @@ left f = f &&& id
 both :: Bifunctor p => (a -> d) -> p a a -> p d d
 both f = bimap f f
 
-
-
+third3 :: (a, b, c) -> c
+third3 (_, _, c) = c
 
 
 
