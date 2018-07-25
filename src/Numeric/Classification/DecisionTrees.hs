@@ -4,6 +4,7 @@ module Numeric.Classification.DecisionTrees where
 import Control.Arrow ((&&&))
 import Prelude hiding (lookup)
 import qualified Prelude as P (filter)
+import Data.Maybe (isJust)
 
 import qualified Data.Foldable as F
 import Data.Bifunctor (Bifunctor(..), first, second)
@@ -135,24 +136,35 @@ infoGainR p ds = h0 - (pl * hl + pr * hr) where
 class Datum d where
   type DKey d :: *
   type DData d :: *
-  lookupAttribute :: DKey d -> d -> Maybe (DData d)
+  lookupAttribute :: d -> DKey d -> Maybe (DData d)
 
-(!?) :: Datum d => DKey d -> d -> Maybe (DData d)
+(!?) :: Datum d => d -> DKey d -> Maybe (DData d)
 (!?) = lookupAttribute  
 
 newtype DenseD a = DenseD { unDenseD :: VU.Vector a } deriving (Eq, Show)
 
+fromListD :: VU.Unbox a => [a] -> DenseD a
+fromListD ll = DenseD $ VU.fromList ll
+
 instance VU.Unbox a => Datum (DenseD a) where
   type DKey (DenseD a) = Int
   type DData (DenseD a) = a
-  lookupAttribute i (DenseD v) = v VU.!? i
+  lookupAttribute (DenseD v) i = v VU.!? i
 
 newtype SparseD k a = SparseD { unSparseD :: M.Map k a } deriving (Eq, Show)
+
+fromListS :: Ord k => [(k, a)] -> SparseD k a
+fromListS ll = SparseD $ M.fromList ll
 
 instance Ord k => Datum (SparseD k a) where
   type DKey (SparseD k a) = k 
   type DData (SparseD k a) = a
-  lookupAttribute i (SparseD mm) = M.lookup i mm
+  lookupAttribute (SparseD mm) i = M.lookup i mm
+
+-- | Return a 'Datum' decision function according to a Boolean function of one of its attributes
+splitAttrP :: Datum d => (DData d -> Bool) -> DKey d -> (d -> Bool)
+splitAttrP p k dat = maybe False p (dat !? k)
+  
   
   
   
