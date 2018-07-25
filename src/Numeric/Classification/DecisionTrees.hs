@@ -19,7 +19,7 @@ import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Exception (Exception(..))
 
-import Numeric.Classification.Internal.Datum
+import qualified Numeric.Classification.Internal.Datum as D
 
 
 
@@ -103,19 +103,20 @@ maxInfoGainSplit :: (Foldable f, Functor f) =>
               -> (a -> Bool)  -- ^ Decision function
 maxInfoGainSplit vals decision ds = decision thr
   where
-    (thr, _) = F.maximumBy (comparing snd) $ tabulateSplitsR vals decision ds
+    (thr, _) = F.maximumBy (comparing snd) $ mf <$> vals 
+    mf x = (x, infoGainR (decision x) ds)
 
--- bisect p mi ma x0 = undefined where
---   (pmi, pma) = (p mi, p ma)
+maxInfoGainSplit_ :: (D.Datum d, Foldable f, Functor f) =>
+                     f t
+                  -> (t -> D.Attr d -> Bool)
+                  -> D.Key d
+                  -> Dataset k [d]
+                  -> (D.Attr d -> Bool)
+maxInfoGainSplit_ vals decision k ds = decision thr
+  where
+    (thr, _) = F.maximumBy (comparing snd) $ mf <$> vals 
+    mf x = (x, infoGainR_ (decision x) k ds)
 
-
-tabulateSplitsR :: (Functor f, Ord ig, Floating ig) =>
-                   f t  -- ^ Decision thresholds 
-                -> (t -> a -> Bool) -- ^ Decision function
-                -> Dataset k [a] 
-                -> f (t, ig)  -- ^ (Threshold, information gain)
-tabulateSplitsR vals decision ds = mf <$> vals where
-  mf x = (x, infoGainR (decision x) ds)
 
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
@@ -125,21 +126,21 @@ infoGainR p ds = h0 - (pl * hl + pr * hr) where
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)    
 
 
-infoGainR_ :: (Datum d, Ord h, Floating h) =>
-              (Attr d -> Bool)
-           -> Key d
+infoGainR_ :: (D.Datum d, Ord h, Floating h) =>
+              (D.Attr d -> Bool)
+           -> D.Key d
            -> Dataset k [d] -> h
 infoGainR_ p k ds = h0 - (pl * hl + pr * hr) where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
 
 
-splitDatasetAtAttr :: (Fractional a, Datum d) =>
-                      (Attr d -> Bool)
-                   -> Key d
+splitDatasetAtAttr :: (Fractional a, D.Datum d) =>
+                      (D.Attr d -> Bool)
+                   -> D.Key d
                    -> Dataset k [d]
                    -> (Dataset k [d], a, Dataset k [d], a)  
-splitDatasetAtAttr p k = splitDataset (splitAttrP p k)
+splitDatasetAtAttr p k = splitDataset (D.splitAttrP p k)
   
 
 -- | helper function for 'infoGain' and 'infoGainR'
@@ -157,12 +158,13 @@ splitDataset p ds = (dsl, pl, dsr, pr) where
 partition :: Functor f => (a -> Bool) -> f [a] -> (f [a], f [a])
 partition p = filterF p &&& filterF (not . p)
 
+uniquesEnum :: (Foldable t, Enum a) => Dataset k (t a) -> IM.IntMap a
+uniquesEnum = uniques fromEnum
+
 uniques :: Foldable t => (a -> IM.Key) -> Dataset k (t a) -> IM.IntMap a
 uniques kf (Dataset ds) = M.foldr insf IM.empty ds where
-  insf ll acc = fromFoldableIM kf ll `IM.union` acc
-
-fromFoldableIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap a
-fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
+  insf ll acc = fromFoldableIM ll `IM.union` acc
+  fromFoldableIM x = IM.fromList $ map (left kf) $ F.toList x
 
 -- * Little abstract friends
 
