@@ -108,13 +108,21 @@ type BoolTree = TTree Bool
 -- Dataset k (t a) -> (a -> Bool)
 
 
+
+
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
 --
 -- tjs = [(t, j) | t <- ts, j <- js]
-maxInfoGainSplit :: (Ord j, Ord k) =>
-                    [(t, j)]          -- ^ (Decision thresholds, feature indices)
+--
+-- * Usage : 
+-- 
+-- optimalSplitDataset decision tjs ds = splitDatasetAtAttr (decision tstar) jstar ds where
+--   (tstar, jstar) = maxInfoGainSplit tjs decision ds
+-- 
+maxInfoGainSplit :: (Foldable f, Functor f, Ord j, Ord k) =>
+                    f (t, j)          -- ^ (Decision thresholds, feature indices)
                  -> (t -> a -> Bool)  -- ^ Comparison function
                  -> Dataset k [X j a]
                  -> (t, j)            -- ^ Optimal dataset splitting (threshold, feature index)
