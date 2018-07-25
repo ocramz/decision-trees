@@ -1,4 +1,4 @@
-{-# language DeriveFunctor #-}
+{-# language TypeFamilies, DeriveFunctor #-}
 module Numeric.Classification.DecisionTrees where
 
 import Control.Arrow ((&&&))
@@ -17,6 +17,8 @@ import Data.Ord (comparing)
 import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Exception (Exception(..))
+
+import qualified Data.Vector.Unboxed as VU
 
 
 -- | Labeled dataset represented as a 'Map'. The map keys are the class labels
@@ -50,12 +52,11 @@ toList (Dataset ds) = M.toList ds
 size :: Foldable t => Dataset k (t a) -> Int
 size (Dataset ds) = M.foldl' (\acc l -> acc + length l) 0 ds
 
--- | Size of the individual classes 
+-- | Number of items in each class
 sizeClasses :: (Foldable t, Num n) => Dataset k (t a) -> M.Map k n
 sizeClasses (Dataset ds) = (fromIntegral . length) <$> ds
 
-
--- | Empirical class probabilities
+-- | Empirical class probabilities i.e. for each k, number of items in class k / total number of items
 probClasses :: (Fractional b, Foldable t) => Dataset k (t a) -> M.Map k b
 probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
 
@@ -74,7 +75,7 @@ entropy_ ps = negate . sum <$> traverse entropyD ps where
   entropyD p | p > 0 = pure ( p * logBase 2 p)
              | otherwise = throwM $ ZeroProbabilityE "Zero probability bin"
 
--- | Differential entropy has a singularity at 0 but converges ~ linearly to 0 for small positive values.
+-- | Differential entropy has a singularity at 0 but converges slowly to 0 for small positive values.
 entropyR :: (Foldable t, Ord h, Floating h) => Dataset k (t a) -> h
 entropyR = entropyR_ . probClasses
 
@@ -131,6 +132,31 @@ infoGainR p ds = h0 - (pl * hl + pr * hr) where
 --   where
 --     (dsl, pl, dsr, pr) = splitDataset p ds
 
+class Datum d where
+  type DKey d :: *
+  type DData d :: *
+  lookupAttribute :: DKey d -> d -> Maybe (DData d)
+
+(!?) :: Datum d => DKey d -> d -> Maybe (DData d)
+(!?) = lookupAttribute  
+
+newtype DenseD a = DenseD { unDenseD :: VU.Vector a } deriving (Eq, Show)
+
+instance VU.Unbox a => Datum (DenseD a) where
+  type DKey (DenseD a) = Int
+  type DData (DenseD a) = a
+  lookupAttribute i (DenseD v) = v VU.!? i
+
+newtype SparseD k a = SparseD { unSparseD :: M.Map k a } deriving (Eq, Show)
+
+instance Ord k => Datum (SparseD k a) where
+  type DKey (SparseD k a) = k 
+  type DData (SparseD k a) = a
+  lookupAttribute i (SparseD mm) = M.lookup i mm
+  
+  
+  
+
 -- | helper function for 'infoGain' and 'infoGainR'
 splitDataset :: Fractional d =>
                     (a -> Bool)
@@ -174,3 +200,9 @@ both f = bimap f f
 data ValueException = ZeroProbabilityE String deriving (Eq, Show, Typeable)
 
 instance Exception ValueException 
+
+
+
+
+
+
