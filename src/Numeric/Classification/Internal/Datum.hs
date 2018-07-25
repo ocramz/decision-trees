@@ -5,11 +5,11 @@ module Numeric.Classification.Internal.Datum
 
 
 import qualified Data.Foldable as F
-import qualified Data.IntMap.Strict as IM
+-- import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 -- import qualified Data.Vector.Unboxed as VU
 
-import Data.Maybe (isNothing)
+-- import Data.Maybe (isNothing)
 import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Numeric.Classification.Exceptions
@@ -17,6 +17,9 @@ import Numeric.Classification.Exceptions
 
 -- | A data point, with features labeled by index j
 newtype X j a = X { unX :: M.Map j a } deriving (Eq, Show, Functor, Foldable, Traversable)
+
+empty :: X j a 
+empty = X M.empty
 
 (!?) :: Ord j => X j a -> j -> Maybe a
 (X mm) !? j = M.lookup j mm
@@ -28,8 +31,17 @@ splitAttrP p j dat = maybe False p (dat !? j)
 splitAttrPM :: (MonadThrow m, Show j, Typeable j, Ord j) => j -> X j a -> m a
 splitAttrPM j dat = maybe (throwM $ MissingFeatureE j) pure (dat !? j)
 
-imap :: (j -> a -> b) -> X j a -> X j b
-imap f (X mm) = X $ M.mapWithKey f mm
+mapWithKey :: (j -> a -> b) -> X j a -> X j b
+mapWithKey f (X mm) = X $ M.mapWithKey f mm
+
+foldrWithKey :: (j -> a -> b -> b) -> b -> X j a -> b
+foldrWithKey f z (X mm) = M.foldrWithKey f z mm
+
+foldlWithKey' :: (a -> j -> b -> a) -> a -> X j b -> a
+foldlWithKey' f z (X mm) = M.foldlWithKey' f z mm
+
+unionWithKey :: Ord j => (j -> a -> a -> a) -> X j a -> X j a -> X j a
+unionWithKey f (X m1) (X m2) = X $ M.unionWithKey f m1 m2
 
 fromList :: Ord j => [(j, a)] -> X j a 
 fromList = X . M.fromList
