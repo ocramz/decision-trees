@@ -20,6 +20,7 @@ library
   hs-source-dirs:      src
   exposed-modules:     Numeric.Classification.DecisionTrees
   other-modules:       Numeric.Classification.Internal.Datum
+                       Numeric.Classification.Exceptions
   build-depends:       base >= 4.7 && < 5
                      , containers
                      , exceptions

@@ -2,8 +2,6 @@
 module Numeric.Classification.DecisionTrees where
 
 import Control.Arrow ((&&&))
-import Prelude hiding (lookup)
-import qualified Prelude as P (filter)
 import Data.Maybe (isJust)
 
 import qualified Data.Foldable as F
@@ -15,12 +13,11 @@ import qualified Data.IntMap as IM
 import Data.Function (on)
 import Data.Ord (comparing)
 
-import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Exception (Exception(..))
 -- import Data.Functor.Compose
-import qualified Numeric.Classification.Internal.Datum as D
-
+import Numeric.Classification.Internal.Datum 
+import Numeric.Classification.Exceptions
 
 
 -- | Labeled dataset represented as a 'Map'. The map keys are the class labels
@@ -111,12 +108,12 @@ type BoolTree = TTree Bool
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
-maxInfoGainSplit_ :: (D.Datum d, Ord k, Foldable f, Functor f) =>
-                     f t  -- ^ Decision thresholds
-                  -> (t -> a -> Bool)  -- ^ Comparison function
-                  -> D.Key d
-                  -> Dataset k [d a]
-                  -> (a -> Bool) -- ^ Dataset splitting decision function 
+-- maxInfoGainSplit_ :: (D.Datum d, Ord k, Foldable f, Functor f) =>
+--                      f t  -- ^ Decision thresholds
+--                   -> (t -> a -> Bool)  -- ^ Comparison function
+--                   -> D.Key d
+--                   -> Dataset k [d a]
+--                   -> (a -> Bool) -- ^ Dataset splitting decision function 
 maxInfoGainSplit_ tvals decision k ds = decision tstar
   where
     (tstar, _) = F.maximumBy (comparing snd) $ mf <$> tvals 
@@ -128,39 +125,35 @@ maxInfoGainSplit_ tvals decision k ds = decision tstar
 --     (tstar, kstar, _) = F.maximumBy (comparing third3) $ D.imap mf tkvals 
 --     mf k t = (t, k, infoGainR (decision t) k ds)
 
--- asdf decision ds = D.imap mf where
---   mf k t = (t, k, infoGainR (decision t) k ds)
 
-asdf :: (D.Datum d, Ord k, Ord h, Floating h) =>
-        d t
-     -> (t -> a -> Bool)
-     -> Dataset k [d a]
-     -> d h
-asdf dat decision ds = D.imap (\k t -> infoGainR (decision t) k ds) dat
+-- -- asd :: (Floating b, D.Datum d, Ord b, Ord k) =>
+-- --      (a -> a -> Bool) -> Dataset k [d a] -> Dataset k [d b]
+-- asd decision ds = map (D.imap g) <$> ds where
+--   g k t = (k, t, infoGainR (decision t) k ds)
 
 third3 (_, _, c) = c
 
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
-infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
-             (a -> Bool)
-          -> D.Key d
-          -> Dataset k [d a]
-          -> h
+-- infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
+--              (a -> Bool)
+--           -> D.Key d
+--           -> Dataset k [d a]
+--           -> h
 infoGainR p k ds = h0 - (pl * hl + pr * hr) where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
 
 
 -- | helper function for 'infoGain' and 'infoGainR'
-splitDatasetAtAttr :: (Fractional n, Ord k, D.Datum d) =>
-                      (a -> Bool)
-                   -> D.Key d
-                   -> Dataset k [d a]
-                   -> (Dataset k [d a], n, Dataset k [d a], n)  
+-- splitDatasetAtAttr :: (Fractional n, Ord k, D.Datum d) =>
+--                       (a -> Bool)
+--                    -> D.Key d
+--                    -> Dataset k [d a]
+--                    -> (Dataset k [d a], n, Dataset k [d a], n)  
 splitDatasetAtAttr p k ds = (dsl, pl, dsr, pr) where
   sz = fromIntegral . size 
-  (dsl, dsr) = partition (D.splitAttrP p k) ds
+  (dsl, dsr) = partition (splitAttrP p k) ds
   (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
   pl = sl / s0
   pr = sr / s0 
@@ -203,11 +196,7 @@ both f = bimap f f
 
 
 
--- * Exceptions
 
-data ValueException = ZeroProbabilityE String deriving (Eq, Show, Typeable)
-
-instance Exception ValueException 
 
 
 
