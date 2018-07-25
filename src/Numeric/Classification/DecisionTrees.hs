@@ -94,6 +94,15 @@ entropyR_ ps = negate . sum $ entropyReg <$> ps where
 
 
 
+-- | A "tagged tree"; at each branching point we can attach decision information, e.g. an Ordering or an equality comparison
+data TTree c a = Leaf a
+  | Branch c (TTree c a) (TTree c a)
+
+type OrdTree = TTree Ordering
+
+type BoolTree = TTree Bool
+
+
 
 -- | Split decision: find feature value that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
 
@@ -102,12 +111,12 @@ entropyR_ ps = negate . sum $ entropyReg <$> ps where
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
-maxInfoGainSplit_ :: (D.Datum d, Ord k, Foldable f, Functor f) =>
-                     f t  -- ^ Decision thresholds
-                  -> (t -> D.Attr d -> Bool)  -- ^ Comparison function
-                  -> D.Key d
-                  -> Dataset k [d]
-                  -> (D.Attr d -> Bool) -- ^ Dataset splitting decision function 
+-- maxInfoGainSplit_ :: (D.Datum d, Ord k, Foldable f, Functor f) =>
+--                      f t  -- ^ Decision thresholds
+--                   -> (t -> D.Attr d -> Bool)  -- ^ Comparison function
+--                   -> D.Key d
+--                   -> Dataset k [d]
+--                   -> (D.Attr d -> Bool) -- ^ Dataset splitting decision function 
 maxInfoGainSplit_ tvals decision k ds = decision tstar
   where
     (tstar, _) = F.maximumBy (comparing snd) $ mf <$> tvals 
@@ -116,10 +125,10 @@ maxInfoGainSplit_ tvals decision k ds = decision tstar
 
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
-infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
-              (D.Attr d -> Bool)
-           -> D.Key d
-           -> Dataset k [d] -> h
+-- infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
+--               (D.Attr d -> Bool)
+--            -> D.Key d
+--            -> Dataset k [d] -> h
 infoGainR p k ds = h0 - (pl * hl + pr * hr) where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
