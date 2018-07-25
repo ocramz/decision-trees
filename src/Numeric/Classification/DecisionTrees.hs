@@ -108,12 +108,12 @@ type BoolTree = TTree Bool
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
--- maxInfoGainSplit_ :: (D.Datum d, Ord k, Foldable f, Functor f) =>
---                      f t  -- ^ Decision thresholds
---                   -> (t -> a -> Bool)  -- ^ Comparison function
---                   -> D.Key d
---                   -> Dataset k [d a]
---                   -> (a -> Bool) -- ^ Dataset splitting decision function 
+maxInfoGainSplit_ :: (Ord j, Ord k, Foldable f, Functor f) =>
+                     f t  -- ^ Decision thresholds
+                  -> (t -> a -> Bool)  -- ^ Comparison function
+                  -> j
+                  -> Dataset k [X j a]
+                  -> (a -> Bool) -- ^ Dataset splitting decision function 
 maxInfoGainSplit_ tvals decision k ds = decision tstar
   where
     (tstar, _) = F.maximumBy (comparing snd) $ mf <$> tvals 
@@ -135,11 +135,11 @@ third3 (_, _, c) = c
 
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
--- infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
---              (a -> Bool)
---           -> D.Key d
---           -> Dataset k [d a]
---           -> h
+infoGainR :: (Ord j, Ord k, Ord h, Floating h) =>
+             (a -> Bool)
+          -> j
+          -> Dataset k [X j a]
+          -> h
 infoGainR p k ds = h0 - (pl * hl + pr * hr) where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
