@@ -16,7 +16,7 @@ splitAttrP p k dat = maybe False p (dat !? k)
 
 class Foldable d => Datum (d :: * -> *) where
 --   {-# minimal lookupAttribute, fromList #-}
-  type Key d :: *  -- ^ Feature
+  type Key d :: * 
   type V d a :: *
   lookupAttribute :: d a -> Key d -> Maybe a
   fromList :: [V d a] -> d a
