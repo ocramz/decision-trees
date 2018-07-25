@@ -96,64 +96,43 @@ entropyR_ ps = negate . sum $ entropyReg <$> ps where
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained from the 'uniques' function
-maxInfoGainSplit :: (Foldable f, Functor f) =>
-                 f t -- ^ Decision thresholds
-              -> (t -> a -> Bool) -- ^ Comparison function
-              -> Dataset k [a]
-              -> (a -> Bool)  -- ^ Decision function
-maxInfoGainSplit vals decision ds = decision thr
-  where
-    (thr, _) = F.maximumBy (comparing snd) $ mf <$> vals 
-    mf x = (x, infoGainR (decision x) ds)
-
 maxInfoGainSplit_ :: (D.Datum d, Foldable f, Functor f) =>
-                     f t
-                  -> (t -> D.Attr d -> Bool)
+                     f t  -- ^ Decision thresholds
+                  -> (t -> D.Attr d -> Bool)  -- ^ Comparison function
                   -> D.Key d
                   -> Dataset k [d]
-                  -> (D.Attr d -> Bool)
+                  -> (D.Attr d -> Bool) -- ^ Dataset splitting decision function 
 maxInfoGainSplit_ vals decision k ds = decision thr
   where
     (thr, _) = F.maximumBy (comparing snd) $ mf <$> vals 
-    mf x = (x, infoGainR_ (decision x) k ds)
+    mf x = (x, infoGainR (decision x) k ds)
 
 
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
-infoGainR :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> h
-infoGainR p ds = h0 - (pl * hl + pr * hr) where
-    (dsl, pl, dsr, pr) = splitDataset p ds
-    (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)    
-
-
-infoGainR_ :: (D.Datum d, Ord h, Floating h) =>
+infoGainR :: (D.Datum d, Ord h, Floating h) =>
               (D.Attr d -> Bool)
            -> D.Key d
            -> Dataset k [d] -> h
-infoGainR_ p k ds = h0 - (pl * hl + pr * hr) where
+infoGainR p k ds = h0 - (pl * hl + pr * hr) where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
 
 
+-- | helper function for 'infoGain' and 'infoGainR'
 splitDatasetAtAttr :: (Fractional a, D.Datum d) =>
                       (D.Attr d -> Bool)
                    -> D.Key d
                    -> Dataset k [d]
                    -> (Dataset k [d], a, Dataset k [d], a)  
-splitDatasetAtAttr p k = splitDataset (D.splitAttrP p k)
-  
-
--- | helper function for 'infoGain' and 'infoGainR'
-splitDataset :: Fractional d =>
-                    (a -> Bool)
-                 -> Dataset k [a]
-                 -> (Dataset k [a], d, Dataset k [a], d)
-splitDataset p ds = (dsl, pl, dsr, pr) where
+splitDatasetAtAttr pa k ds = (dsl, pl, dsr, pr) where
+  p = D.splitAttrP pa k
   sz = fromIntegral . size 
   (dsl, dsr) = partition p ds
   (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
   pl = sl / s0
-  pr = sr / s0
+  pr = sr / s0 
+  
 
 partition :: Functor f => (a -> Bool) -> f [a] -> (f [a], f [a])
 partition p = filterF p &&& filterF (not . p)
