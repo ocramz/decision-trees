@@ -170,14 +170,15 @@ partition :: (Foldable t, Ord k, Ord j) =>
            -> (Dataset k [X j a], Dataset k [X j a])
 partition p j ds@Dataset{} = foldrWithKey insf (empty, empty) ds where
   insf k lrow (l, r) = (insert k lp l, insert k rp r) where    
-    (lp, rp) = partition1_ p j lrow
+    (lp, rp) = partitionX p j lrow
 
-partition1_ :: (Foldable t, Ord j) =>
-               (a -> Bool)
-            -> j
-            -> t (X j a)
-            -> ([X j a], [X j a])
-partition1_ p k = partition1 (splitAttrP p k)
+-- | Partition a Foldable of data [X ..] according to the values taken by their j'th feature
+partitionX :: (Foldable t, Ord j) =>
+               (a -> Bool)  -- ^ Decision function (element-level)
+            -> j   -- ^ Feature index
+            -> t (X j a)   -- ^ Data
+            -> ([X j a], [X j a]) -- ^ Positive decision in the left bucket, negative in the right
+partitionX p k = partition1 (splitAttrP p k)
 
 partition1 :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
 partition1 p = foldr ins ([], [])  where
