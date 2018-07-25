@@ -18,33 +18,8 @@ import Data.Ord (comparing)
 import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Exception (Exception(..))
-
-import Data.Functor.Compose
-
+-- import Data.Functor.Compose
 import qualified Numeric.Classification.Internal.Datum as D
-
-
-newtype Ds k a = Ds { unDs :: Compose (M.Map k) [] a } deriving (Eq, Show, Functor, Foldable, Traversable)
-
--- withDs f (Ds (Compose mm)) = Ds (Compose (f mm))
-
-mkDs = Ds . Compose
-getDs (Ds (Compose mm)) = mm
-
-emptyDs = Ds $ Compose M.empty
-
-singletonDs k x = Ds $ Compose $ M.singleton k x
-
--- newtype Ds k a = Ds { unDs :: M.Map k [a] } deriving (Eq, Show)
-
--- -- foldDs f (Ds ds) = foldMap f ds
-
--- insertDs k x (Ds ds) = Ds $ M.insert k x ds
-
--- sizeDs :: Ds k a -> Int
--- sizeDs ds = foldl (\acc l -> acc + length l) 0 ds
-
--- sizeClassesDs (Ds ds) = (fromIntegral . length) <$> ds
 
 
 
@@ -63,8 +38,14 @@ empty = Dataset M.empty
 insert :: Ord k => k -> a -> Dataset k a -> Dataset k a
 insert k ls (Dataset ds) = Dataset $ M.insert k ls ds
 
--- filterF :: Functor f => (a -> Bool) -> f [a] -> f [a]
--- filterF p ds = P.filter p <$> ds
+mapWithKey :: (k -> a -> b) -> Dataset k a -> Dataset k b
+mapWithKey f (Dataset ds) = Dataset $ M.mapWithKey f ds
+
+foldrWithKey :: (k -> a -> b -> b) -> b -> Dataset k a -> b
+foldrWithKey f z (Dataset ds) = M.foldrWithKey f z ds
+
+foldlWithKey' :: (a -> k -> b -> a) -> a -> Dataset k b -> a
+foldlWithKey' f z (Dataset ds) = M.foldlWithKey' f z ds
 
 fromList :: Ord k => [(k, a)] -> Dataset k a
 fromList ld = Dataset $ M.fromList ld
@@ -121,59 +102,55 @@ entropyR_ ps = negate . sum $ entropyReg <$> ps where
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
-
--- maxInfoGainSplit_ :: (D.Datum d, Foldable f, Functor f) =>
---                      f t  -- ^ Decision thresholds
---                   -> (t -> D.Attr d -> Bool)  -- ^ Comparison function
---                   -> D.Key d
---                   -> Dataset k [d]
---                   -> (D.Attr d -> Bool) -- ^ Dataset splitting decision function 
--- maxInfoGainSplit_ tvals decision k ds = decision tstar
---   where
---     (tstar, _) = F.maximumBy (comparing snd) $ mf <$> tvals 
---     mf t = (t, infoGainR (decision t) k ds)
-
+maxInfoGainSplit_ :: (D.Datum d, Ord k, Foldable f, Functor f) =>
+                     f t  -- ^ Decision thresholds
+                  -> (t -> D.Attr d -> Bool)  -- ^ Comparison function
+                  -> D.Key d
+                  -> Dataset k [d]
+                  -> (D.Attr d -> Bool) -- ^ Dataset splitting decision function 
+maxInfoGainSplit_ tvals decision k ds = decision tstar
+  where
+    (tstar, _) = F.maximumBy (comparing snd) $ mf <$> tvals 
+    mf t = (t, infoGainR (decision t) k ds)
 
 
--- -- | Information gain due to a dataset split (regularized, H(0) := 0)
--- infoGainR :: (D.Datum d, Ord h, Floating h) =>
---               (D.Attr d -> Bool)
---            -> D.Key d
---            -> Dataset k [d] -> h
--- infoGainR p k ds = h0 - (pl * hl + pr * hr) where
---     (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
---     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
+
+-- | Information gain due to a dataset split (regularized, H(0) := 0)
+infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
+              (D.Attr d -> Bool)
+           -> D.Key d
+           -> Dataset k [d] -> h
+infoGainR p k ds = h0 - (pl * hl + pr * hr) where
+    (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
+    (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
 
 
--- -- | helper function for 'infoGain' and 'infoGainR'
--- splitDatasetAtAttr :: (Fractional a, D.Datum d) =>
---                       (D.Attr d -> Bool)
---                    -> D.Key d
---                    -> Dataset k [d]
---                    -> (Dataset k [d], a, Dataset k [d], a)  
--- splitDatasetAtAttr p k ds = (dsl, pl, dsr, pr) where
---   sz = fromIntegral . size 
---   (dsl, dsr) = partition (D.splitAttrP p k) ds
---   (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
---   pl = sl / s0
---   pr = sr / s0 
-  
+-- | helper function for 'infoGain' and 'infoGainR'
+splitDatasetAtAttr :: (Fractional a, Ord k, D.Datum d) =>
+                      (D.Attr d -> Bool)
+                   -> D.Key d
+                   -> Dataset k [d]
+                   -> (Dataset k [d], a, Dataset k [d], a)  
+splitDatasetAtAttr p k ds = (dsl, pl, dsr, pr) where
+  sz = fromIntegral . size 
+  (dsl, dsr) = partition (D.splitAttrP p k) ds
+  (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
+  pl = sl / s0
+  pr = sr / s0 
 
--- partition :: Functor f => (a -> Bool) -> f [a] -> (f [a], f [a])
-partition :: Functor f => (a -> Bool) -> f [a] -> f ([a], [a])
-partition p fxs = ff <$> fxs where
-  ff ll = foldr ins ([], []) ll 
+-- | Partition a Dataset in two, according to a decision function
+partition :: (Ord k, Foldable t) =>
+             (a -> Bool)  -- ^ Decision function (element-level)
+          -> Dataset k (t a)
+          -> (Dataset k [a], Dataset k [a])  
+partition p ds@Dataset{} = foldrWithKey insf (empty, empty) ds where
+  insf k lrow (l, r) = (insert k lp l, insert k rp r) where    
+    (lp, rp) = partition1 p lrow
+
+partition1 :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
+partition1 p = foldr ins ([], [])  where
   ins x (l, r) | p x = (x : l, r)
                | otherwise = (l , x : r)
-
-partitionMap :: Ord k => (a -> Bool) -> M.Map k a -> (M.Map k [a], M.Map k [a])
-partitionMap p mm = M.foldrWithKey insf (M.empty, M.empty) mm where
-  insf k x (l, r) | p x = (insertAppend k x l, r)
-                  | otherwise = (l, insertAppend k x r)
-
-insertAppend :: Ord k => k -> a -> M.Map k [a] -> M.Map k [a]
-insertAppend k x mm =
-  maybe (M.singleton k [x]) (\l -> M.insert k (x : l) mm) (M.lookup k mm)
 
 uniquesEnum :: (Foldable t, Enum a) => Dataset k (t a) -> IM.IntMap a
 uniquesEnum = uniques fromEnum
