@@ -111,12 +111,12 @@ type BoolTree = TTree Bool
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
--- maxInfoGainSplit_ :: (D.Datum d, Ord k, Foldable f, Functor f) =>
---                      f t  -- ^ Decision thresholds
---                   -> (t -> D.Attr d -> Bool)  -- ^ Comparison function
---                   -> D.Key d
---                   -> Dataset k [d]
---                   -> (D.Attr d -> Bool) -- ^ Dataset splitting decision function 
+maxInfoGainSplit_ :: (D.Datum d, Ord k, Foldable f, Functor f) =>
+                     f t  -- ^ Decision thresholds
+                  -> (t -> a -> Bool)  -- ^ Comparison function
+                  -> D.Key d
+                  -> Dataset k [d a]
+                  -> (a -> Bool) -- ^ Dataset splitting decision function 
 maxInfoGainSplit_ tvals decision k ds = decision tstar
   where
     (tstar, _) = F.maximumBy (comparing snd) $ mf <$> tvals 
@@ -125,21 +125,21 @@ maxInfoGainSplit_ tvals decision k ds = decision tstar
 
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
--- infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
---               (D.Attr d -> Bool)
---            -> D.Key d
---            -> Dataset k [d] -> h
+infoGainR :: (D.Datum d, Ord k, Ord h, Floating h) =>
+              (a -> Bool)
+           -> D.Key d
+           -> Dataset k [d a] -> h
 infoGainR p k ds = h0 - (pl * hl + pr * hr) where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
 
 
 -- | helper function for 'infoGain' and 'infoGainR'
-splitDatasetAtAttr :: (Fractional a, Ord k, D.Datum d) =>
-                      (D.Attr d -> Bool)
+splitDatasetAtAttr :: (Fractional n, Ord k, D.Datum d) =>
+                      (a -> Bool)
                    -> D.Key d
-                   -> Dataset k [d]
-                   -> (Dataset k [d], a, Dataset k [d], a)  
+                   -> Dataset k [d a]
+                   -> (Dataset k [d a], n, Dataset k [d a], n)  
 splitDatasetAtAttr p k ds = (dsl, pl, dsr, pr) where
   sz = fromIntegral . size 
   (dsl, dsr) = partition (D.splitAttrP p k) ds
