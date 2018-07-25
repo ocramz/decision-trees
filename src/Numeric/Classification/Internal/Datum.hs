@@ -28,6 +28,8 @@ empty = X M.empty
 splitAttrP :: Ord j => (a -> Bool) -> j -> (X j a -> Bool)
 splitAttrP p j dat = maybe False p (dat !? j)
 
+splitAttrPj p j dat = maybe False (p j) (dat !? j)
+
 splitAttrPM :: (MonadThrow m, Show j, Typeable j, Ord j) => j -> X j a -> m a
 splitAttrPM j dat = maybe (throwM $ MissingFeatureE j) pure (dat !? j)
 

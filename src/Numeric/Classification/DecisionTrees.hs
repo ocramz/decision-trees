@@ -148,11 +148,11 @@ infoGainR p k ds = h0 - (pl * hl + pr * hr) where
 
 
 -- | helper function for 'infoGain' and 'infoGainR'
--- splitDatasetAtAttr :: (Fractional n, Ord k, D.Datum d) =>
---                       (a -> Bool)
---                    -> D.Key d
---                    -> Dataset k [d a]
---                    -> (Dataset k [d a], n, Dataset k [d a], n)  
+splitDatasetAtAttr :: (Fractional n, Ord j, Ord k) =>
+                      (a -> Bool)
+                   -> j
+                   -> Dataset k [X j a]
+                   -> (Dataset k [X j a], n, Dataset k [X j a], n)  
 splitDatasetAtAttr p k ds = (dsl, pl, dsr, pr) where
   sz = fromIntegral . size 
   (dsl, dsr) = partition (splitAttrP p k) ds
