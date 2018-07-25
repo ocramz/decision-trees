@@ -124,15 +124,14 @@ infoGainR p ds = h0 - (pl * hl + pr * hr) where
     (dsl, pl, dsr, pr) = splitDataset p ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)    
 
--- -- | Information gain due to a dataset split
--- infoGain :: (Ord h, Floating h) => (a -> Bool) -> Dataset k [a] -> Maybe h
--- infoGain p ds = do
---   h0 <- entropy ds
---   hl <- entropy dsl
---   hr <- entropy dsr
---   pure $ h0 - (pl * hl + pr * hr)
---   where
---     (dsl, pl, dsr, pr) = splitDataset p ds
+
+infoGainR_ :: (Datum d, Ord h, Floating h) =>
+              (Attr d -> Bool)
+           -> Key d
+           -> Dataset k [d] -> h
+infoGainR_ p k ds = h0 - (pl * hl + pr * hr) where
+    (dsl, pl, dsr, pr) = splitDatasetAtAttr p k ds
+    (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
 
 
 splitDatasetAtAttr :: (Fractional a, Datum d) =>
