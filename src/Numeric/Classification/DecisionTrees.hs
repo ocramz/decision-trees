@@ -131,6 +131,13 @@ maxInfoGainSplit_ tvals decision k ds = decision tstar
 -- asdf decision ds = D.imap mf where
 --   mf k t = (t, k, infoGainR (decision t) k ds)
 
+asdf :: (D.Datum d, Ord k, Ord h, Floating h) =>
+        d t
+     -> (t -> a -> Bool)
+     -> Dataset k [d a]
+     -> d h
+asdf dat decision ds = D.imap (\k t -> infoGainR (decision t) k ds) dat
+
 third3 (_, _, c) = c
 
 
