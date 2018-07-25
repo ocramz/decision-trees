@@ -1,16 +1,36 @@
-{-# language TypeFamilies #-}
+{-# language TypeFamilies, MultiParamTypeClasses, InstanceSigs, RankNTypes #-}
 module Numeric.Classification.Internal.Datum (Datum(..), (!?), splitAttrP) where
 
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Vector.Unboxed as VU
 
+
+
+-- class IxFunctor f where
+--   type IKey f :: * 
+--   imap :: (IKey f -> a -> b) -> f a -> f b
+
+-- instance IxFunctor (SparseD k) where
+--   type IKey (SparseD k) = k
+--   imap f (SD mm) = SD $ M.mapWithKey f mm
+
+-- instance IxFunctor SparseDI where
+--   type IKey SparseDI = IM.Key
+--   imap f (SDI mm) = SDI $ IM.mapWithKey f mm 
+
+
+
+
+
+
+
 -- | Return a 'Datum' decision function according to a Boolean function of one of its attributes
 splitAttrP :: Datum d => (Attr d -> Bool) -> Key d -> (d -> Bool)
 splitAttrP p k dat = maybe False p (dat !? k)
 
 class Datum d where
-  {-# minimal lookupAttribute, fromList #-}
+--   {-# minimal lookupAttribute, fromList #-}
   type Key d :: *
   type Attr d :: *
   type V d :: *
@@ -29,6 +49,7 @@ instance VU.Unbox a => Datum (DenseD a) where
   type V (DenseD a) = a
   lookupAttribute (DD v) i = v VU.!? i
   fromList = DD . VU.fromList
+
 
 -- | A 'SparseD' datum is internally a 'Map'
 newtype SparseD k a = SD { unSD :: M.Map k a } deriving (Eq, Show)
