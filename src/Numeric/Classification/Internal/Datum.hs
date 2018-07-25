@@ -5,24 +5,28 @@ import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import qualified Data.Vector.Unboxed as VU
 
-class Datum d where
-  {-# minimal lookupAttribute #-}
-  type DKey d :: *
-  type DData d :: *
-  type Dkv d :: *
-  lookupAttribute :: d -> DKey d -> Maybe (DData d)
-  fromList :: [Dkv d] -> d
+-- | Return a 'Datum' decision function according to a Boolean function of one of its attributes
+splitAttrP :: Datum d => (Attr d -> Bool) -> Key d -> (d -> Bool)
+splitAttrP p k dat = maybe False p (dat !? k)
 
-(!?) :: Datum d => d -> DKey d -> Maybe (DData d)
+class Datum d where
+  {-# minimal lookupAttribute, fromList #-}
+  type Key d :: *
+  type Attr d :: *
+  type V d :: *
+  lookupAttribute :: d -> Key d -> Maybe (Attr d)
+  fromList :: [V d] -> d
+
+(!?) :: Datum d => d -> Key d -> Maybe (Attr d)
 (!?) = lookupAttribute  
 
 -- | A 'DenseD' datum is internally an unboxed vector
 newtype DenseD a = DD { unDD :: VU.Vector a } deriving (Eq, Show)
 
 instance VU.Unbox a => Datum (DenseD a) where
-  type DKey (DenseD a) = Int
-  type DData (DenseD a) = a
-  type Dkv (DenseD a) = a
+  type Key (DenseD a) = Int
+  type Attr (DenseD a) = a
+  type V (DenseD a) = a
   lookupAttribute (DD v) i = v VU.!? i
   fromList = DD . VU.fromList
 
@@ -30,9 +34,9 @@ instance VU.Unbox a => Datum (DenseD a) where
 newtype SparseD k a = SD { unSD :: M.Map k a } deriving (Eq, Show)
 
 instance Ord k => Datum (SparseD k a) where
-  type DKey (SparseD k a) = k 
-  type DData (SparseD k a) = a
-  type Dkv (SparseD k a) = (k, a)
+  type Key (SparseD k a) = k 
+  type Attr (SparseD k a) = a
+  type V (SparseD k a) = (k, a)
   lookupAttribute (SD mm) i = M.lookup i mm
   fromList = SD . M.fromList
 
@@ -40,14 +44,10 @@ instance Ord k => Datum (SparseD k a) where
 newtype SparseDI a = SDI { unSDI :: IM.IntMap a } deriving (Eq, Show)
 
 instance Datum (SparseDI a) where
-  type DKey (SparseDI a) = IM.Key
-  type DData (SparseDI a) = a
-  type Dkv (SparseDI a) = (IM.Key, a)
+  type Key (SparseDI a) = IM.Key
+  type Attr (SparseDI a) = a
+  type V (SparseDI a) = (IM.Key, a)
   lookupAttribute (SDI mm) i = IM.lookup i mm
   fromList = SDI . IM.fromList
 
 
-
--- | Return a 'Datum' decision function according to a Boolean function of one of its attributes
-splitAttrP :: Datum d => (DData d -> Bool) -> DKey d -> (d -> Bool)
-splitAttrP p k dat = maybe False p (dat !? k)

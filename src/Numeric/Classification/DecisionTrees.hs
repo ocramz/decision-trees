@@ -19,6 +19,7 @@ import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Exception (Exception(..))
 
+import Numeric.Classification.Internal.Datum
 
 
 
@@ -134,9 +135,12 @@ infoGainR p ds = h0 - (pl * hl + pr * hr) where
 --     (dsl, pl, dsr, pr) = splitDataset p ds
 
 
-  
-  
-  
+splitDatasetAtAttr :: (Fractional a, Datum d) =>
+                      (Attr d -> Bool)
+                   -> Key d
+                   -> Dataset k [d]
+                   -> (Dataset k [d], a, Dataset k [d], a)  
+splitDatasetAtAttr p k = splitDataset (splitAttrP p k)
   
 
 -- | helper function for 'infoGain' and 'infoGainR'
