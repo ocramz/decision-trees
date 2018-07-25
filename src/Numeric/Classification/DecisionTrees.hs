@@ -64,7 +64,7 @@ sizeClasses :: (Foldable t, Num n) => Dataset k (t a) -> M.Map k n
 sizeClasses (Dataset ds) = (fromIntegral . length) <$> ds
 
 -- | Empirical class probabilities i.e. for each k, number of items in class k / total number of items
-probClasses :: (Fractional b, Foldable t) => Dataset k (t a) -> M.Map k b
+probClasses :: (Fractional prob, Foldable t) => Dataset k (t a) -> M.Map k prob
 probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
 
 -- | Entropy of a Dataset
@@ -136,6 +136,16 @@ maxInfoGainSplit_ tvals decision k ds = decision tstar
 third3 (_, _, c) = c
 
 
+tabulateInfoGain :: (Floating ig, Ord ig, Ord j, Ord k) =>
+                    (t -> a -> Bool)
+                 -> [t]
+                 -> [j]
+                 -> Dataset k [X j a]
+                 -> [(t, j, ig)]
+tabulateInfoGain p ts js ds = map infog tjs where
+  infog (t, j) = (t, j, infoGainR (p t) j ds)
+  tjs = [(t, j) | t <- ts, j <- js]
+
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
 infoGainR :: (Ord j, Ord k, Ord h, Floating h) =>
              (a -> Bool)
@@ -178,7 +188,7 @@ partitionX :: (Foldable t, Ord j) =>
             -> j   -- ^ Feature index
             -> t (X j a)   -- ^ Data
             -> ([X j a], [X j a]) -- ^ Positive decision in the left bucket, negative in the right
-partitionX p k = partition1 (splitAttrP p k)
+partitionX p j = partition1 (splitAttrP p j)
 
 partition1 :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
 partition1 p = foldr ins ([], [])  where
