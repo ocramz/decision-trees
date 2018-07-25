@@ -135,6 +135,9 @@ maxInfoGainSplit_ tvals decision k ds = decision tstar
 
 third3 (_, _, c) = c
 
+maxInfoGainSplit' p ts js ds = (tstar, jstar) where
+  (tstar, jstar, _) = F.maximumBy (comparing third3) $ tabulateInfoGain p ts js ds
+
 
 tabulateInfoGain :: (Floating ig, Ord ig, Ord j, Ord k) =>
                     (t -> a -> Bool)
@@ -142,8 +145,8 @@ tabulateInfoGain :: (Floating ig, Ord ig, Ord j, Ord k) =>
                  -> [j]
                  -> Dataset k [X j a]
                  -> [(t, j, ig)]
-tabulateInfoGain p ts js ds = map infog tjs where
-  infog (t, j) = (t, j, infoGainR (p t) j ds)
+tabulateInfoGain decision ts js ds = map infog tjs where
+  infog (t, j) = (t, j, infoGainR (decision t) j ds)
   tjs = [(t, j) | t <- ts, j <- js]
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
