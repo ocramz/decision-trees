@@ -16,7 +16,7 @@ import Data.Ord (comparing)
 import Control.Monad.Catch (MonadThrow(..))
 import Control.Exception (Exception(..))
 -- import Data.Functor.Compose
-import Numeric.Classification.Internal.Datum (X, splitAttrP)
+import Numeric.Classification.Internal.Datum (X, Xdef)
 import qualified Numeric.Classification.Internal.Datum as X
 
 import Numeric.Classification.Exceptions
@@ -91,6 +91,12 @@ entropyR_ ps = negate . sum $ entropyReg <$> ps where
   entropyReg p | p > 0 =  p * logBase 2 p
                | otherwise = 0
 
+-- | Gini index (expected error rate)
+gini :: (Foldable t, Floating c) => Dataset k (t a) -> c
+gini = gini_ . probClasses
+
+gini_ :: (Foldable t, Functor t, Floating c) => t c -> c
+gini_ ps = 1 - sum ((**2) <$> ps)
 
 
 -- | A "tagged tree"; at each branching point we can attach decision information and other metadata
@@ -141,18 +147,22 @@ third5 (_, _, c, _, _) = c
 
 fromOrdering :: Ord a => Ordering -> a -> a -> Bool
 fromOrdering c = case c of
-  EQ -> (==)
   LT -> (<)
-  GT -> (>)
+  _  -> (>=)
+
+data Split j a = Split {
+    splitThresh :: a
+  , splitFeature :: j
+  , splitFun :: Ordering } deriving (Eq, Show)
 
 
-data DatasetSplit k j h a = DS {
-      -- dsDecision :: Compare a
-    dsTStar :: a
-  , dsJStar :: j
-  , dsInfoGain :: h
-  , dsPos :: Dataset k [X j a]
-  , dsNeg :: Dataset k [X j a]} 
+-- data DatasetSplit k j h a = DS {
+--       -- dsDecision :: Compare a
+--     dsTStar :: a
+--   , dsJStar :: j
+--   , dsInfoGain :: h
+--   , dsPos :: Dataset k [X j a]
+--   , dsNeg :: Dataset k [X j a]} 
   
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
@@ -198,7 +208,7 @@ partitionX :: (Foldable t, Ord j) =>
             -> j   -- ^ Feature index
             -> t (X j a)   -- ^ Data
             -> ([X j a], [X j a]) -- ^ Positive decision in the left bucket, negative in the right
-partitionX p j = partition1 (splitAttrP p j)
+partitionX p j = partition1 (X.dataSplitDecision p j)
 
 partition1 :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
 partition1 p = foldr ins ([], [])  where

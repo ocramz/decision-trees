@@ -3,13 +3,10 @@ module Numeric.Classification.Internal.Datum
  --   (Datum(..), (!?), splitAttrP)
  where
 
-
 import qualified Data.Foldable as F
 -- import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 -- import qualified Data.Vector.Unboxed as VU
-
--- import Data.Maybe (isNothing)
 import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Numeric.Classification.Exceptions
@@ -24,12 +21,25 @@ empty = X M.empty
 (!?) :: Ord j => X j a -> j -> Maybe a
 (X mm) !? j = M.lookup j mm
 
--- | Return a 'Datum' decision function according to a Boolean function of one of its attributes
-splitAttrP :: Ord j => (a -> Bool) -> j -> (X j a -> Bool)
-splitAttrP p j dat = maybe False p (dat !? j)
+-- | Index and default value for a data feature
+data Xdef j a = Xdef j a deriving (Eq, Show)
 
-splitAttrPM :: (MonadThrow m, Show j, Typeable j, Ord j) => j -> X j a -> m a
-splitAttrPM j dat = maybe (throwM $ MissingFeatureE j) pure (dat !? j)
+-- | Returns a 'Datum' decision function according to a Boolean function of its j'th feature
+--
+-- Supply a default value that's tested if the feature is missing
+dataSplitDecisionWD :: Ord j => (a -> Bool) -> Xdef j a -> (X j a -> Bool)
+dataSplitDecisionWD p (Xdef j def) dat = maybe z p (dat !? j) where
+  z | p def = True
+    | otherwise = False
+
+-- | Returns a 'Datum' decision function according to a Boolean function of its j'th feature
+--
+-- NB : missing features _fail_ the test by default (which is generally a bad idea)
+dataSplitDecision :: Ord j => (a -> Bool) -> j -> X j a -> Bool
+dataSplitDecision p j dat = maybe False p (dat !? j)
+  
+-- splitAttrPM :: (MonadThrow m, Show j, Typeable j, Ord j) => j -> X j a -> m a
+-- splitAttrPM j dat = maybe (throwM $ MissingFeatureE j) pure (dat !? j)
 
 mapWithKey :: (j -> a -> b) -> X j a -> X j b
 mapWithKey f (X mm) = X $ M.mapWithKey f mm
