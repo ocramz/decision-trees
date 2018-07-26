@@ -93,13 +93,14 @@ entropyR_ ps = negate . sum $ entropyReg <$> ps where
 
 
 
--- | A "tagged tree"; at each branching point we can attach decision information, e.g. an Ordering or an equality comparison
-data TTree c a = Leaf a
-  | Branch c (TTree c a) (TTree c a)
+-- | A "tagged tree"; at each branching point we can attach decision information and other metadata
+data TTree c a = Leaf c a
+  | Branch c (TTree c a) (TTree c a) deriving (Eq, Show)
 
-type OrdTree = TTree Ordering
+train ds = undefined
+  where
+    
 
-type BoolTree = TTree Bool
 
 
 
@@ -120,16 +121,38 @@ type BoolTree = TTree Bool
 -- 
 -- optimalSplitDataset decision tjs ds = splitDatasetAtAttr (decision tstar) jstar ds where
 --   (tstar, jstar) = maxInfoGainSplit tjs decision ds
--- 
-maxInfoGainSplit :: (Foldable f, Functor f, Ord j, Ord k) =>
-                    f (t, j)          -- ^ (Decision thresholds, feature indices)
-                 -> (t -> a -> Bool)  -- ^ Comparison function
-                 -> Dataset k [X j a]
-                 -> (t, j)            -- ^ Optimal dataset splitting (threshold, feature index)
-maxInfoGainSplit tjs decision ds = (tstar, jstar) where
-  (tstar, jstar, _) = F.maximumBy (comparing third3) $ infog <$> tjs 
-  infog (t, j) = (t, j, infoGainR (decision t) j ds)
+--
+    
+-- maxInfoGainSplit :: (Foldable f, Functor f, Ord j, Ord k) =>
+--                     f (t, j)          -- ^ (Decision thresholds, feature indices)
+--                  -> (t -> a -> Bool)  -- ^ Comparison function
+--                  -> Dataset k [X j a]
+--                  -> (t, j)            -- ^ Optimal dataset splitting (threshold, feature index)
+maxInfoGainSplit tjs decision ds = (tstar, jstar, dsl, dsr) where
+  (tstar, jstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog <$> tjs
+  infog (t, j) = (t, j, ig, dsl, dsr) where
+    (ig, dsl, dsr) = infoGainR (decision t) j ds
+--   infog (t, j) = (t, j, infoGainR (decision t) j ds)
 
+third5 :: (a, b, c, d, e) -> c
+third5 (_, _, c, _, _) = c
+
+-- data Compare = Equal a a | Smaller a a | Larger a a deriving (Eq, Show)
+
+fromOrdering :: Ord a => Ordering -> a -> a -> Bool
+fromOrdering c = case c of
+  EQ -> (==)
+  LT -> (<)
+  GT -> (>)
+
+
+data DatasetSplit k j h a = DS {
+      -- dsDecision :: Compare a
+    dsTStar :: a
+  , dsJStar :: j
+  , dsInfoGain :: h
+  , dsPos :: Dataset k [X j a]
+  , dsNeg :: Dataset k [X j a]} 
   
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
@@ -137,10 +160,11 @@ infoGainR :: (Ord j, Ord k, Ord h, Floating h) =>
              (a -> Bool)
           -> j
           -> Dataset k [X j a]
-          -> h
-infoGainR p j ds = h0 - (pl * hl + pr * hr) where
+          -> (h, Dataset k [X j a], Dataset k [X j a])
+infoGainR p j ds = (informationGain, dsl, dsr)  where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p j ds
-    (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)   
+    (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)
+    informationGain = h0 - (pl * hl + pr * hr)
 
 
 -- | helper function for 'infoGain' and 'infoGainR'
