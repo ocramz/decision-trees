@@ -24,13 +24,29 @@ empty = X M.empty
 -- | Index and default value for a data feature
 data Xdef j a = Xdef j a deriving (Eq, Show)
 
+fromOrdering :: Ord a => Ordering -> a -> a -> Bool
+fromOrdering c = case c of
+  LT -> (<)
+  _  -> (>=)
+
+data Split j a = Split {
+    splitValueDefault :: a
+  , splitFeatureIx :: j
+  , splitFun :: Ordering } deriving (Eq, Show)
+
 -- | Returns a 'Datum' decision function according to a Boolean function of its j'th feature
 --
 -- Supply a default value that's tested if the feature is missing
-dataSplitDecisionWD :: Ord j => (a -> Bool) -> Xdef j a -> (X j a -> Bool)
-dataSplitDecisionWD p (Xdef j def) dat = maybe z p (dat !? j) where
-  z | p def = True
+dataSplitDecisionWD :: (Ord a, Ord j) => Split j a -> a -> X j a -> Bool
+dataSplitDecisionWD (Split tdef j o) t dat = maybe z (`p` t) (dat !? j) where
+  p = fromOrdering o
+  z | tdef `p` t = True
     | otherwise = False
+
+-- dataSplitDecisionWD :: Ord j => (a -> Bool) -> Xdef j a -> (X j a -> Bool)
+-- dataSplitDecisionWD p (Xdef j def) dat = maybe z p (dat !? j) where
+--   z | p def = True
+--     | otherwise = False
 
 -- | Returns a 'Datum' decision function according to a Boolean function of its j'th feature
 --

@@ -143,18 +143,6 @@ maxInfoGainSplit tjs decision ds = (tstar, jstar, dsl, dsr) where
 third5 :: (a, b, c, d, e) -> c
 third5 (_, _, c, _, _) = c
 
--- data Compare = Equal a a | Smaller a a | Larger a a deriving (Eq, Show)
-
-fromOrdering :: Ord a => Ordering -> a -> a -> Bool
-fromOrdering c = case c of
-  LT -> (<)
-  _  -> (>=)
-
-data Split j a = Split {
-    splitThresh :: a
-  , splitFeature :: j
-  , splitFun :: Ordering } deriving (Eq, Show)
-
 
 -- data DatasetSplit k j h a = DS {
 --       -- dsDecision :: Compare a
