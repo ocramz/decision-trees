@@ -7,6 +7,7 @@ import qualified Data.Foldable as F
 -- import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 -- import qualified Data.Vector.Unboxed as VU
+import qualified Data.Vector as V
 import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Numeric.Classification.Exceptions
@@ -21,8 +22,20 @@ empty = X M.empty
 (!?) :: Ord j => X j a -> j -> Maybe a
 (X mm) !? j = M.lookup j mm
 
--- | Index and default value for a data feature
-data Xdef j a = Xdef j a deriving (Eq, Show)
+-- | Index and default values for a datum
+newtype XDef j a = XDef (V.Vector (j, a)) deriving (Eq, Show)
+
+mkXDef :: Int -> [j] -> [a] -> Maybe (XDef j a)
+mkXDef n ixs xds | q1 && q2 = Just $ XDef $ V.fromList $ zip ixs xds
+                 | otherwise = Nothing where
+                     q1 = length ixs == n
+                     q2 = length xds == n
+
+-- lookupXDef :: Int -> XDef j a -> Maybe (j, a)
+lookupXDef j (XDef ixds) | q = snd $ ixds V.! j where
+                             q = 0 <= j && j < V.length ixds
+
+-- |
 
 fromOrdering :: Ord a => Ordering -> a -> a -> Bool
 fromOrdering c = case c of
