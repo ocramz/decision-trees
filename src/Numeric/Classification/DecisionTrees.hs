@@ -131,11 +131,11 @@ train ds = undefined
 --   (tstar, jstar) = maxInfoGainSplit tjs decision ds
 --
     
--- maxInfoGainSplit :: (Foldable f, Functor f, Ord j, Ord k) =>
---                     f (t, j)          -- ^ (Decision thresholds, feature indices)
---                  -> (t -> a -> Bool)  -- ^ Comparison function
---                  -> Dataset k [X j a]
---                  -> (t, j)            -- ^ Optimal dataset splitting (threshold, feature index)
+maxInfoGainSplit :: (Foldable f, Functor f, Ord k) =>
+                    f (t, Int)          -- ^ (Decision thresholds, feature indices)
+                 -> (t -> a -> Bool)  -- ^ Comparison function
+                 -> Dataset k [XV.V a]
+                 -> (t, Int, Dataset k [XV.V a], Dataset k [XV.V a])            -- ^ Optimal dataset splitting (threshold, feature index)
 maxInfoGainSplit tjs decision ds = (tstar, jstar, dsl, dsr) where
   (tstar, jstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog <$> tjs
   infog (t, j) = (t, j, ig, dsl, dsr) where
