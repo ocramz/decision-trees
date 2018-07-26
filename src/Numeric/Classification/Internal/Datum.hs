@@ -8,7 +8,7 @@ import qualified Data.Foldable as F
 import qualified Data.Map.Strict as M
 -- import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector as V
-import Data.Typeable
+-- import Data.Typeable
 import Control.Monad.Catch (MonadThrow(..))
 import Numeric.Classification.Exceptions
 

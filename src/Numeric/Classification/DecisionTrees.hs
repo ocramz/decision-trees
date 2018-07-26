@@ -17,7 +17,9 @@ import Control.Monad.Catch (MonadThrow(..))
 import Control.Exception (Exception(..))
 -- import Data.Functor.Compose
 import Numeric.Classification.Internal.Datum (X)
-import qualified Numeric.Classification.Internal.Datum as X
+
+-- import qualified Numeric.Classification.Internal.Datum as X
+import qualified Numeric.Classification.Internal.Datum.Vector as XV
 
 import Numeric.Classification.Exceptions
 
@@ -154,11 +156,11 @@ third5 (_, _, c, _, _) = c
   
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
-infoGainR :: (Ord j, Ord k, Ord h, Floating h) =>
+infoGainR :: (Ord k, Ord h, Floating h) =>
              (a -> Bool)
-          -> j
-          -> Dataset k [X j a]
-          -> (h, Dataset k [X j a], Dataset k [X j a])
+          -> Int
+          -> Dataset k [XV.V a]
+          -> (h, Dataset k [XV.V a], Dataset k [XV.V a])
 infoGainR p j ds = (informationGain, dsl, dsr)  where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p j ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)
@@ -166,11 +168,11 @@ infoGainR p j ds = (informationGain, dsl, dsr)  where
 
 
 -- | helper function for 'infoGain' and 'infoGainR'
-splitDatasetAtAttr :: (Fractional n, Ord j, Ord k) =>
+splitDatasetAtAttr :: (Fractional n, Ord k) =>
                       (a -> Bool)
-                   -> j
-                   -> Dataset k [X j a]
-                   -> (Dataset k [X j a], n, Dataset k [X j a], n)  
+                   -> Int
+                   -> Dataset k [XV.V a]
+                   -> (Dataset k [XV.V a], n, Dataset k [XV.V a], n)  
 splitDatasetAtAttr p j ds = (dsl, pl, dsr, pr) where
   sz = fromIntegral . size 
   (dsl, dsr) = partition p j ds
@@ -181,22 +183,22 @@ splitDatasetAtAttr p j ds = (dsl, pl, dsr, pr) where
 -- | Partition a Dataset in two, according to a decision function
 --
 -- e.g. "is the j'th component of datum X_i larger than threshold t ?" 
-partition :: (Foldable t, Ord k, Ord j) =>
+partition :: (Foldable t, Ord k) =>
               (a -> Bool) -- ^ Decision function (element-level)
-           -> j           -- ^ Feature index
-           -> Dataset k (t (X j a))
-           -> (Dataset k [X j a], Dataset k [X j a])
+           -> Int           -- ^ Feature index
+           -> Dataset k (t (XV.V a))
+           -> (Dataset k [XV.V a], Dataset k [XV.V a])
 partition p j ds@Dataset{} = foldrWithKey insf (empty, empty) ds where
   insf k lrow (l, r) = (insert k lp l, insert k rp r) where    
     (lp, rp) = partitionX p j lrow
 
 -- | Partition a Foldable of data [X ..] according to the values taken by their j'th feature
-partitionX :: (Foldable t, Ord j) =>
+partitionX :: (Foldable t) =>
                (a -> Bool)  -- ^ Decision function (element-level)
-            -> j   -- ^ Feature index
-            -> t (X j a)   -- ^ Data
-            -> ([X j a], [X j a]) -- ^ Positive decision in the left bucket, negative in the right
-partitionX p j = partition1 (X.dataSplitDecision p j)
+            -> Int   -- ^ Feature index
+            -> t (XV.V a)   -- ^ Data
+            -> ([XV.V a], [XV.V a]) -- ^ Positive decision in the left bucket, negative in the right
+partitionX p j = partition1 (XV.dataSplitDecision p j)
 
 partition1 :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
 partition1 p = foldr ins ([], [])  where
