@@ -128,8 +128,22 @@ data TNData a = TNData {
     tJStar :: !Int
   , tTStar :: a } deriving (Eq, Show)
 
--- | Split decision: find feature value that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
+growTree :: (Foldable f, Functor f, Ord a, Ord k) =>
+            f (a, Int)
+         -> TOptions
+         -> Dataset k [XV.V a]
+         -> Tree (TNData a) (Dataset k [XV.V a])
+growTree tjs opts ds = unfoldTree (treeRecurs tjs opts) tds0 where
+  tds0 = TDs 0 ds
 
+-- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
+treeRecurs :: (Ord a, Ord k, Foldable t, Functor t) =>
+              t (a, Int)
+           -> TOptions
+           -> TDs (Dataset k [XV.V a])
+           -> Either
+           (Dataset k [XV.V a])
+           (TNData a, TDs (Dataset k [XV.V a]), TDs (Dataset k [XV.V a]))
 treeRecurs tjList (TOptions maxdepth ord) (TDs depth ds)
   | depth >= maxdepth = Left ds
   | otherwise = Right (mdata, tdsl, tdsr)
@@ -141,67 +155,22 @@ treeRecurs tjList (TOptions maxdepth ord) (TDs depth ds)
     tdsl = TDs d' dsl
     tdsr = TDs d' dsr
 
-growTree :: (Foldable f, Functor f, Ord a, Ord k) =>
-            f (a, Int)
-         -> TOptions
-         -> TDs (Dataset k [XV.V a])
-         -> Tree (TNData a) (Dataset k [XV.V a])
-growTree tjs opts = unfoldTree (treeRecurs tjs opts)
-
-
--- | A well-defined Ordering, for strict half-plane separation
-data Order = LessThan | GreaterOrEqual deriving (Eq, Show, Ord, Enum, Bounded)
-
-fromOrder :: Ord a => Order -> (a -> a -> Bool)
-fromOrder o = case o of
-  LessThan -> (<)
-  _ -> (>=)
-
-
-
-    
 
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
--- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
---
---
-    
+-- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'  
 maxInfoGainSplit :: (Foldable f, Functor f, Ord k) =>
                     f (t, Int)          -- ^ (Decision thresholds, feature indices)
                  -> (t -> a -> Bool)  -- ^ Comparison function
                  -> Dataset k [XV.V a]
-                 -> (t, Int, Dataset k [XV.V a], Dataset k [XV.V a]) -- ^ Optimal dataset splitting (threshold, feature index)
+                 -> (t, Int, Dataset k [XV.V a], Dataset k [XV.V a]) -- ^ Optimal dataset splitting (threshold, feature index), positive subset of the data, negative subset
 maxInfoGainSplit tjs decision ds = (tstar, jstar, dsl, dsr) where
   (tstar, jstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog <$> tjs
-  infog (t, j) = (t, j, ig, dsl, dsr) where
-    (ig, dsl, dsr) = infoGainR (decision t) j ds
---   infog (t, j) = (t, j, infoGainR (decision t) j ds)
+  infog (t, j) = (t, j, h, dsl, dsr) where
+    (h, dsl, dsr) = infoGainR (decision t) j ds
 
 third5 :: (a, b, c, d, e) -> c
 third5 (_, _, c, _, _) = c
-
-
-
--- | tjs := T * J where
--- T := unique data values
--- J := feature indices
---
--- NB : if `a` is a floating point type, the "key function" kf will have to quantize it into a histogram
--- tjs :: (Functor t, Foldable t, Foldable v) =>
---        (a -> IM.Key)  -- ^ Quantization function
---     -> Int   -- ^ Number of features
---     -> Dataset k (t (v a))
---     -> [(a, Int)]
--- tjs kf n ds = [(t, j) | j <- js, t <- ts] where
---   js = [0 .. n-1]
---   ts = map snd . IM.toList $ uniques kf ds
-
-
-
-
-
-
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
 infoGainR :: (Ord k, Ord h, Floating h) =>
@@ -209,10 +178,10 @@ infoGainR :: (Ord k, Ord h, Floating h) =>
           -> Int
           -> Dataset k [XV.V a]
           -> (h, Dataset k [XV.V a], Dataset k [XV.V a])
-infoGainR p j ds = (informationGain, dsl, dsr)  where
+infoGainR p j ds = (infoGain, dsl, dsr) where
     (dsl, pl, dsr, pr) = splitDatasetAtAttr p j ds
     (h0, hl, hr) = (entropyR ds, entropyR dsl, entropyR dsr)
-    informationGain = h0 - (pl * hl + pr * hr)
+    infoGain = h0 - (pl * hl + pr * hr)
 
 
 -- | helper function for 'infoGain' and 'infoGainR'
@@ -255,6 +224,22 @@ partition1 p = foldr ins ([], [])  where
 
 
 
+
+-- | tjs := T * J where
+-- T := unique data values
+-- J := feature indices
+--
+-- NB : if `a` is a floating point type, the "key function" kf will have to quantize it into a histogram
+-- tjs :: (Functor t, Foldable t, Foldable v) =>
+--        (a -> IM.Key)  -- ^ Quantization function
+--     -> Int   -- ^ Number of features
+--     -> Dataset k (t (v a))
+--     -> [(a, Int)]
+-- tjs kf n ds = [(t, j) | j <- js, t <- ts] where
+--   js = [0 .. n-1]
+--   ts = map snd . IM.toList $ uniques kf ds
+
+
 -- * Unique dataset entries
 
 uniquesEnum :: (Functor t, Foldable t, Foldable v, Enum a) =>
@@ -278,6 +263,18 @@ uniquesClass kf xs = foldr IM.union IM.empty $ fromFoldableIM kf <$> xs
 fromFoldableIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap a
 fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
 
+
+
+-- | A well-defined Ordering, for strict half-plane separation
+data Order = LessThan | GreaterOrEqual deriving (Eq, Show, Ord, Enum, Bounded)
+
+fromOrder :: Ord a => Order -> (a -> a -> Bool)
+fromOrder o = case o of
+  LessThan -> (<)
+  _ -> (>=)
+
+
+
 -- * Little abstract friends
 
 -- insideOut2 :: (Maybe a, Maybe b) -> Maybe (a, b)
@@ -291,8 +288,7 @@ left f = f &&& id
 both :: Bifunctor p => (a -> d) -> p a a -> p d d
 both f = bimap f f
 
-third3 :: (a, b, c) -> c
-third3 (_, _, c) = c
+
 
 
 
