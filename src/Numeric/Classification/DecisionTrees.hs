@@ -101,9 +101,21 @@ gini_ :: (Foldable t, Functor t, Floating c) => t c -> c
 gini_ ps = 1 - sum ((**2) <$> ps)
 
 
--- | A "tagged tree"; at each branching point we can attach decision information and other metadata
-data TTree c a = Leaf c a
-  | Branch c (TTree c a) (TTree c a) deriving (Eq, Show)
+-- | A binary tree.
+--
+-- We can attach metadata at each leaf and branching point.
+data Tree a =
+    Node a (Tree a) (Tree a)
+  | Leaf a
+  deriving (Eq, Show, Functor, Foldable, Traversable)
+
+unfoldTree :: (t -> (a, Maybe (t, t))) -> t -> Tree a
+unfoldTree f x =
+  maybe (Leaf a) (\(l, r) -> Node a (unfoldTree f l) (unfoldTree f r)) mbs
+  where
+    (a, mbs) = f x
+
+
 
 train ds = undefined
   where
@@ -131,11 +143,11 @@ train ds = undefined
 --   (tstar, jstar) = maxInfoGainSplit tjs decision ds
 --
     
-maxInfoGainSplit :: (Foldable f, Functor f, Ord k) =>
-                    f (t, Int)          -- ^ (Decision thresholds, feature indices)
-                 -> (t -> a -> Bool)  -- ^ Comparison function
-                 -> Dataset k [XV.V a]
-                 -> (t, Int, Dataset k [XV.V a], Dataset k [XV.V a])            -- ^ Optimal dataset splitting (threshold, feature index)
+-- maxInfoGainSplit :: (Foldable f, Functor f, Ord k) =>
+--                     f (t, Int)          -- ^ (Decision thresholds, feature indices)
+--                  -> (t -> a -> Bool)  -- ^ Comparison function
+--                  -> Dataset k [XV.V a]
+--                  -> (t, Int, Dataset k [XV.V a], Dataset k [XV.V a]) -- ^ Optimal dataset splitting (threshold, feature index)
 maxInfoGainSplit tjs decision ds = (tstar, jstar, dsl, dsr) where
   (tstar, jstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog <$> tjs
   infog (t, j) = (t, j, ig, dsl, dsr) where
@@ -209,13 +221,26 @@ partition1 p = foldr ins ([], [])  where
 
 -- * Unique dataset entries
 
-uniquesEnum :: (Foldable t, Enum a) => Dataset k (t a) -> IM.IntMap a
+uniquesEnum :: (Functor t, Foldable t, Foldable v, Enum a) =>
+           Dataset k (t (v a))
+        -> IM.IntMap a
 uniquesEnum = uniques fromEnum
 
-uniques :: Foldable t => (a -> IM.Key) -> Dataset k (t a) -> IM.IntMap a
+uniques :: (Functor t, Foldable t, Foldable v) =>
+           (a -> IM.Key)
+        -> Dataset k (t (v a))
+        -> IM.IntMap a
 uniques kf (Dataset ds) = M.foldr insf IM.empty ds where
-  insf ll acc = fromFoldableIM ll `IM.union` acc
-  fromFoldableIM x = IM.fromList $ map (left kf) $ F.toList x
+  insf im acc = uniquesClass kf im `IM.union` acc
+
+uniquesClass :: (Functor t, Foldable t, Foldable v) =>
+                (a -> IM.Key)
+             -> t (v a)
+             -> IM.IntMap a
+uniquesClass kf xs = foldr IM.union IM.empty $ fromFoldableIM kf <$> xs
+
+fromFoldableIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap a
+fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
 
 -- * Little abstract friends
 
