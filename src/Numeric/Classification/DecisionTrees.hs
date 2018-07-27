@@ -29,7 +29,7 @@ import Numeric.Classification.Exceptions
 
 -- | A binary tree.
 --
--- We can attach metadata at each leaf and branching point.
+-- We can attach metadata at branching point.
 data Tree d a =
     Node d (Tree d a) (Tree d a)
   | Leaf a
@@ -43,7 +43,7 @@ unfoldTree f x =
 -- | Dataset + local tree depth
 data TDs a = TDs { tdsDepth :: !Int, tds :: a } deriving (Eq, Show)
 
--- | Tree global options
+-- | Tree growing global options
 data TOptions = TOptions {
     toMaxDepth :: !Int  -- ^ Max tree depth
   , toOrdering :: Order -- ^ 
