@@ -2,19 +2,18 @@
 module Numeric.Classification.DecisionTrees where
 
 import Control.Arrow ((&&&))
-import Data.Maybe (isJust)
 
 import qualified Data.Foldable as F
-import Data.Bifunctor (Bifunctor(..), first, second)
+import Data.Bifunctor (Bifunctor(..))
 
 import qualified Data.Map.Strict as M
 import qualified Data.IntMap as IM
 
-import Data.Function (on)
+-- import Data.Function (on)
 import Data.Ord (comparing)
 
 import Control.Monad.Catch (MonadThrow(..))
-import Control.Exception (Exception(..))
+-- import Control.Exception (Exception(..))
 -- import Data.Functor.Compose
 import Numeric.Classification.Internal.Datum (X)
 
@@ -117,9 +116,12 @@ unfoldTree f x =
 
 
 
-train ds = undefined
-  where
+-- train ds = undefined
+--   where
     
+
+
+
 
 
 
@@ -158,14 +160,22 @@ third5 :: (a, b, c, d, e) -> c
 third5 (_, _, c, _, _) = c
 
 
--- data DatasetSplit k j h a = DS {
---       -- dsDecision :: Compare a
---     dsTStar :: a
---   , dsJStar :: j
---   , dsInfoGain :: h
---   , dsPos :: Dataset k [X j a]
---   , dsNeg :: Dataset k [X j a]} 
-  
+-- | tjs := T * J where
+-- T := unique data values
+-- J := feature indices
+--
+-- NB : if `a` is a floating point type, the "key function" kf will have to quantize it into a histogram
+tjs :: (Functor t, Foldable t, Foldable v) =>
+       (a -> IM.Key) -> Int -> Dataset k (t (v a)) -> [(a, Int)]
+tjs kf n ds = [(t, j) | j <- js, t <- ts] where
+  js = [0 .. n-1]
+  ts = map snd . IM.toList $ uniques kf ds
+
+
+
+
+
+
 
 -- | Information gain due to a dataset split (regularized, H(0) := 0)
 infoGainR :: (Ord k, Ord h, Floating h) =>
@@ -257,7 +267,6 @@ both f = bimap f f
 
 third3 :: (a, b, c) -> c
 third3 (_, _, c) = c
-
 
 
 
