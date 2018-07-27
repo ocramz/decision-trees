@@ -1,4 +1,5 @@
 {-# language DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+-- {-# language RecordWildCards #-}
 module Numeric.Classification.DecisionTrees where
 
 import Control.Arrow ((&&&))
@@ -103,53 +104,74 @@ gini_ ps = 1 - sum ((**2) <$> ps)
 -- | A binary tree.
 --
 -- We can attach metadata at each leaf and branching point.
-data Tree a =
-    Node a (Tree a) (Tree a)
+data Tree d a =
+    Node d (Tree d a) (Tree d a)
   | Leaf a
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
-unfoldTree :: (t -> (a, Maybe (t, t))) -> t -> Tree a
+unfoldTree :: (t -> Either a (d, t, t)) -> t -> Tree d a
 unfoldTree f x =
-  maybe (Leaf a) (\(l, r) -> Node a (unfoldTree f l) (unfoldTree f r)) mbs
-  where
-    (a, mbs) = f x
+  either Leaf (\(d, l, r) -> Node d (unfoldTree f l) (unfoldTree f r) ) (f x)
 
 
+-- | Dataset + local tree depth
+data TDs a = TDs { tdsDepth :: !Int, tds :: a } deriving (Eq, Show)
 
--- train ds = undefined
---   where
-    
+-- | Tree global options
+data TOptions = TOptions {
+    toMaxDepth :: !Int  -- ^ Max tree depth
+  , toOrdering :: Order -- ^ 
+  } 
 
-
-
-
-
-
+-- | Tree node metadata
+data TNData a = TNData {
+    tJStar :: !Int
+  , tTStar :: a } deriving (Eq, Show)
 
 -- | Split decision: find feature value that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
 
--- Dataset k (t a) -> (a -> Bool)
+treeRecurs tjList (TOptions maxdepth ord) (TDs depth ds)
+  | depth >= maxdepth = Left ds
+  | otherwise = Right (mdata, tdsl, tdsr)
+  where
+    mdata = TNData jstar tstar
+    (tstar, jstar, dsl, dsr) = maxInfoGainSplit tjList ordf ds
+    ordf = fromOrder ord
+    d' = depth + 1
+    tdsl = TDs d' dsl
+    tdsr = TDs d' dsr
+
+growTree :: (Foldable f, Functor f, Ord a, Ord k) =>
+            f (a, Int)
+         -> TOptions
+         -> TDs (Dataset k [XV.V a])
+         -> Tree (TNData a) (Dataset k [XV.V a])
+growTree tjs opts = unfoldTree (treeRecurs tjs opts)
+
+
+-- | A well-defined Ordering, for strict half-plane separation
+data Order = LessThan | GreaterOrEqual deriving (Eq, Show, Ord, Enum, Bounded)
+
+fromOrder :: Ord a => Order -> (a -> a -> Bool)
+fromOrder o = case o of
+  LessThan -> (<)
+  _ -> (>=)
 
 
 
+    
 
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'
 --
--- tjs = [(t, j) | t <- ts, j <- js]
---
--- * Usage : 
--- 
--- optimalSplitDataset decision tjs ds = splitDatasetAtAttr (decision tstar) jstar ds where
---   (tstar, jstar) = maxInfoGainSplit tjs decision ds
 --
     
--- maxInfoGainSplit :: (Foldable f, Functor f, Ord k) =>
---                     f (t, Int)          -- ^ (Decision thresholds, feature indices)
---                  -> (t -> a -> Bool)  -- ^ Comparison function
---                  -> Dataset k [XV.V a]
---                  -> (t, Int, Dataset k [XV.V a], Dataset k [XV.V a]) -- ^ Optimal dataset splitting (threshold, feature index)
+maxInfoGainSplit :: (Foldable f, Functor f, Ord k) =>
+                    f (t, Int)          -- ^ (Decision thresholds, feature indices)
+                 -> (t -> a -> Bool)  -- ^ Comparison function
+                 -> Dataset k [XV.V a]
+                 -> (t, Int, Dataset k [XV.V a], Dataset k [XV.V a]) -- ^ Optimal dataset splitting (threshold, feature index)
 maxInfoGainSplit tjs decision ds = (tstar, jstar, dsl, dsr) where
   (tstar, jstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog <$> tjs
   infog (t, j) = (t, j, ig, dsl, dsr) where
@@ -160,16 +182,20 @@ third5 :: (a, b, c, d, e) -> c
 third5 (_, _, c, _, _) = c
 
 
+
 -- | tjs := T * J where
 -- T := unique data values
 -- J := feature indices
 --
 -- NB : if `a` is a floating point type, the "key function" kf will have to quantize it into a histogram
-tjs :: (Functor t, Foldable t, Foldable v) =>
-       (a -> IM.Key) -> Int -> Dataset k (t (v a)) -> [(a, Int)]
-tjs kf n ds = [(t, j) | j <- js, t <- ts] where
-  js = [0 .. n-1]
-  ts = map snd . IM.toList $ uniques kf ds
+-- tjs :: (Functor t, Foldable t, Foldable v) =>
+--        (a -> IM.Key)  -- ^ Quantization function
+--     -> Int   -- ^ Number of features
+--     -> Dataset k (t (v a))
+--     -> [(a, Int)]
+-- tjs kf n ds = [(t, j) | j <- js, t <- ts] where
+--   js = [0 .. n-1]
+--   ts = map snd . IM.toList $ uniques kf ds
 
 
 
