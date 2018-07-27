@@ -6,11 +6,7 @@ import Data.Monoid (Sum(..))
 import qualified Data.IntMap as IM
 import Control.Arrow ((&&&))
 
--- | x `msub` x == mempty
-class Monoid a => Group a where
-  msub :: a -> a -> a
-instance Num a => Group (Sum a) where
-  (Sum a) `msub` (Sum b) = Sum (a - b)
+
 
 -- | Histogram 
 
@@ -19,8 +15,7 @@ instance Semigroup a => Semigroup (Count a) where
   (Count n xs) <> (Count m ys) = Count (n <> m) (xs <> ys)
 instance Monoid a => Monoid (Count a) where
   mempty = Count (Sum 0) mempty
-instance Group a => Group (Count a) where
-  (Count n xs) `msub` (Count m ys) = Count (n `msub` m) (xs `msub` ys)
+
 
 mkCount1 :: a -> Count [a]
 mkCount1 x = Count 1 [x]
