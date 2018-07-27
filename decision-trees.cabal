@@ -22,7 +22,9 @@ library
   other-modules:       Numeric.Classification.Internal.Datum
                        Numeric.Classification.Internal.Datum.Vector
                        Numeric.Classification.Exceptions
+                       Numeric.InformationTheory
                        Data.Histogram
+                       Data.Dataset
   build-depends:       base >= 4.7 && < 5
                      , containers
                      , exceptions

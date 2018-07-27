@@ -16,89 +16,15 @@ import Data.Ord (comparing)
 import Control.Monad.Catch (MonadThrow(..))
 -- import Control.Exception (Exception(..))
 -- import Data.Functor.Compose
+
+import Data.Dataset
+import Numeric.InformationTheory
 import Numeric.Classification.Internal.Datum (X)
 
 -- import qualified Numeric.Classification.Internal.Datum as X
 import qualified Numeric.Classification.Internal.Datum.Vector as XV
 
 import Numeric.Classification.Exceptions
-
-
--- | Labeled dataset represented as a 'Map'. The map keys are the class labels
-newtype Dataset k a = Dataset { unDataset :: M.Map k a } deriving (Eq, Show, Functor)
-
-instance Foldable (Dataset k) where
-  foldMap f (Dataset dm) = foldMap f dm
-
-instance Traversable (Dataset k) where
-  traverse f (Dataset dm) = Dataset <$> traverse f dm
-
-empty :: Dataset k a
-empty = Dataset M.empty
-
-insert :: Ord k => k -> a -> Dataset k a -> Dataset k a
-insert k ls (Dataset ds) = Dataset $ M.insert k ls ds
-
-mapWithKey :: (k -> a -> b) -> Dataset k a -> Dataset k b
-mapWithKey f (Dataset ds) = Dataset $ M.mapWithKey f ds
-
-foldrWithKey :: (k -> a -> b -> b) -> b -> Dataset k a -> b
-foldrWithKey f z (Dataset ds) = M.foldrWithKey f z ds
-
-foldlWithKey' :: (a -> k -> b -> a) -> a -> Dataset k b -> a
-foldlWithKey' f z (Dataset ds) = M.foldlWithKey' f z ds
-
-fromList :: Ord k => [(k, a)] -> Dataset k a
-fromList ld = Dataset $ M.fromList ld
-
-toList :: Dataset k a -> [(k, a)]
-toList (Dataset ds) = M.toList ds
-
--- lookup :: Ord k => k -> Dataset k a -> Maybe a
--- lookup k (Dataset ds) = M.lookup k ds
-
--- | Size of the dataset
-size :: Foldable t => Dataset k (t a) -> Int
-size (Dataset ds) = M.foldl' (\acc l -> acc + length l) 0 ds
-
--- | Number of items in each class
-sizeClasses :: (Foldable t, Num n) => Dataset k (t a) -> M.Map k n
-sizeClasses (Dataset ds) = (fromIntegral . length) <$> ds
-
--- | Empirical class probabilities i.e. for each k, number of items in class k / total number of items
-probClasses :: (Fractional prob, Foldable t) => Dataset k (t a) -> M.Map k prob
-probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
-
--- | Entropy of a Dataset
---
--- Entropy is defined as: sum (p_i * log_2 p_i)
--- where p_i = |{ x | x has Label i}|/|Dataset|
---
--- NB: returns Nothing if any class contains 0 points (i.e. if the integration support contains any 0-measure subsets)
-entropy :: (Foldable t, Ord h, Floating h, MonadThrow m) => Dataset k (t a) -> m h
-entropy = entropy_ . probClasses
-
-entropy_ :: (Traversable t, Ord a, Floating a, MonadThrow m) => t a -> m a
-entropy_ ps = negate . sum <$> traverse entropyD ps where
-  -- entropyD :: (Ord a, Floating a) => a -> Maybe a
-  entropyD p | p > 0 = pure ( p * logBase 2 p)
-             | otherwise = throwM $ ZeroProbabilityE "Zero probability bin"
-
--- | Differential entropy has a singularity at 0 but converges slowly to 0 for small positive values.
-entropyR :: (Foldable t, Ord h, Floating h) => Dataset k (t a) -> h
-entropyR = entropyR_ . probClasses
-
-entropyR_ :: (Foldable t, Functor t, Ord c, Floating c) => t c -> c
-entropyR_ ps = negate . sum $ entropyReg <$> ps where
-  entropyReg p | p > 0 =  p * logBase 2 p
-               | otherwise = 0
-
--- | Gini index (expected error rate)
-gini :: (Foldable t, Floating c) => Dataset k (t a) -> c
-gini = gini_ . probClasses
-
-gini_ :: (Foldable t, Functor t, Floating c) => t c -> c
-gini_ ps = 1 - sum ((**2) <$> ps)
 
 
 -- | A binary tree.
