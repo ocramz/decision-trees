@@ -46,7 +46,8 @@ data TDs a = TDs { tdsDepth :: !Int, tds :: a } deriving (Eq, Show)
 -- | Tree growing global options
 data TOptions = TOptions {
     toMaxDepth :: !Int  -- ^ Max tree depth
-  , toOrdering :: Order -- ^ 
+  , toMinLeafSize :: !Int
+  , toOrdering :: Order -- ^ (<) or (>=)
   } 
 
 -- | Tree node metadata
@@ -70,10 +71,13 @@ treeRecurs :: (Ord a, Ord k, Foldable t, Functor t) =>
            -> Either
            (Dataset k [XV.V a])
            (TNData a, TDs (Dataset k [XV.V a]), TDs (Dataset k [XV.V a]))
-treeRecurs tjList (TOptions maxdepth ord) (TDs depth ds)
-  | depth >= maxdepth = Left ds
+treeRecurs tjList (TOptions maxdepth minls ord) (TDs depth ds)
+  | q1 || q2 = Left ds
   | otherwise = Right (mdata, tdsl, tdsr)
   where
+    szq d = size d <= minls
+    q1 = depth >= maxdepth
+    q2 = szq dsl || szq dsr
     mdata = TNData jstar tstar
     (tstar, jstar, dsl, dsr) = maxInfoGainSplit tjList ordf ds
     ordf = fromOrder ord
