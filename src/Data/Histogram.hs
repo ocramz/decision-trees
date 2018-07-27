@@ -4,6 +4,7 @@ module Data.Histogram where
 import qualified Data.Foldable as F
 import Data.Monoid (Sum(..))
 import qualified Data.IntMap as IM
+import qualified Data.Map.Strict as M
 import Control.Arrow ((&&&))
 
 
@@ -21,12 +22,12 @@ mkCount1 :: a -> Count [a]
 mkCount1 x = Count 1 [x]
 
 -- | Populate a histogram 
-fillHistogram :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap (Count [a])
-fillHistogram kf xs =  
-  IM.fromListWith (<>) $ map (kf &&& mkCount1) $ F.toList xs
+fillHistogramL :: (Ord k, Foldable t) => (a -> k) -> t a -> M.Map k (Count [a])
+fillHistogramL kf xs =  
+  M.fromListWith (<>) $ map (kf &&& mkCount1) $ F.toList xs
 
 --  Some binning/quantization function
-quantize :: (Ord a, Num a) => a -> IM.Key
+-- quantize :: (Ord a, Num a) => a -> IM.Key
 quantize x | x < 0 = 0
            | x >= 0 && x < 5 = 1
            | otherwise = 2
@@ -42,8 +43,27 @@ mkDistrib xs = fmap ((/ n) . fromIntegral . getSum . getCount) xs where
 getBins :: Functor t => t (Count a) -> t a 
 getBins = fmap getCountItems 
 
--- 
+-- * A packaged Histogram type
 
--- newtype Histogram f a = Histogram {
---   getHistogram :: IM.IntMap (Count (f a))
---   } deriving (Eq, Show, Functor)
+
+empty :: (a -> k) -> Histogram k a
+empty kf = Histogram kf M.empty
+
+addToHistogram :: (Ord k, Foldable t) => Histogram k a -> t a -> Histogram k a
+addToHistogram h0 xs = Histogram kf (M.union hm0 hm1) where
+  (Histogram kf hm0) = h0
+  hm1 = M.fromListWith (<>) $ map (kf &&& mkCount1) $ F.toList xs
+
+mkHistogram :: (Ord k, Foldable t) => (a -> k) -> t a -> Histogram k a
+mkHistogram kf = addToHistogram (empty kf)   
+
+data Histogram k a = Histogram {
+    binFunction :: a -> k
+  , getHistogram :: M.Map k (Count [a])
+  } 
+
+instance (Eq k, Eq a) => Eq (Histogram k a) where
+  h1 == h2 = getHistogram h1 == getHistogram h2
+
+instance (Show k, Show a) => Show (Histogram k a) where
+  show h = show (getHistogram h)
