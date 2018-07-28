@@ -2,12 +2,18 @@ module Numeric.Classification (
   -- * Tree
   Tree(..), growTree, TOptions(..), Order(..), TNData(..),
   -- * Dataset
-  Dataset(..), fromList, fromListWith, toList, uniques,
+  D.Dataset(..), D.fromList, D.fromListWith, 
   -- * Data point
-  XV.V(..), XV.mkV
+  X.V(..), X.mkV, (X.!), X.indexUnsafe, X.dim, X.toList
   ) where
 
-import Data.Dataset
+import qualified Data.Dataset as D
 import Numeric.Classification.DecisionTrees
-import qualified Numeric.Classification.Internal.Datum.Vector as XV
+import qualified Numeric.Classification.Internal.Datum.Vector as X
 import Numeric.Classification.Exceptions (DataException(..))
+
+
+
+
+
+

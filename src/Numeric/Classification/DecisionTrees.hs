@@ -176,27 +176,40 @@ partition1 p = foldr ins ([], [])  where
 
 -- * Unique dataset entries
 
-uniquesEnum :: (Functor t, Foldable t, Foldable v, Enum a) =>
-           Dataset k (t (v a))
-        -> IM.IntMap a
-uniquesEnum = uniques fromEnum
+-- uniquesEnum :: (Functor t, Foldable t, Foldable v, Enum a) =>
+--            Dataset k (t (v a))
+--         -> IM.IntMap a
+-- uniquesEnum = uniques fromEnum
 
--- | First converts each datapoint into an 'IntMap', and computes all the unique values via 'IM.union' 
-uniques :: (Functor t, Foldable t, Foldable v) =>
-           (a -> IM.Key)  -- ^ Key function (i.e. quantization/binning decision)
-        -> Dataset k (t (v a)) 
-        -> IM.IntMap a  
-uniques kf (Dataset ds) = M.foldr insf IM.empty ds where
-  insf im acc = uniquesClass kf im `IM.union` acc
+-- -- | First converts each datapoint into an 'IntMap', and computes all the unique values via 'IM.union' 
+-- uniques :: (Functor t, Foldable t, Foldable v) =>
+--            (a -> IM.Key)  -- ^ Key function (i.e. quantization/binning decision)
+--         -> Dataset k (t (v a)) 
+--         -> IM.IntMap a  
+-- uniques kf (Dataset ds) = M.foldr insf IM.empty ds where
+--   insf im acc = uniquesClass kf im `IM.union` acc
 
-uniquesClass :: (Functor t, Foldable t, Foldable v) =>
-                (a -> IM.Key)
-             -> t (v a)
-             -> IM.IntMap a
-uniquesClass kf xs = foldr IM.union IM.empty $ fromFoldableIM kf <$> xs
+-- uniquesClass :: (Functor t, Foldable t, Foldable v) =>
+--                 (a -> IM.Key)
+--              -> t (v a)
+--              -> IM.IntMap a
+-- uniquesClass kf xs = foldr IM.union IM.empty $ fromFoldableIM kf <$> xs
 
+-- featureThreshValues :: (Traversable t, Applicative v, Ord a, Num a) =>
+--            a
+--         -> a
+--         -> t (v a)
+--         -> v [a]
+-- featureThreshValues x0 dx xs = map snd . IM.toList <$> featureSummary (fromFoldableIM binf) xs
+--   where
+--     binf = bin x0 dx
+
+
+  
 fromFoldableIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap a
 fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
+
+
 
 
 
@@ -209,13 +222,37 @@ fromOrder o = case o of
   _ -> (>=)
 
 
+-- * General purpose combinators
+
+featureBounds :: (Traversable t, Applicative v, Ord a) => t (v a) -> v (a, a)
+featureBounds = featureSummary (minimum &&& maximum)
+
+-- | Each class is represented as a Traversable of Applicatives (e.g. a list of V's).
+-- We "transpose" it via sequenceA (thus obtaining a V of lists), and for each entry  
+-- of the V we compute a summary function.
+-- This could be used e.g. to compute unique values for each of the features, or various statistical moments for the purpose of summarization and/or standardization. 
+featureSummary :: (Traversable t, Applicative v) => (t a -> b) -> t (v a) -> v b
+featureSummary f = fmap f . sequenceA
+
+-- * Feature binning logic
+
+-- | Decide an Enum bin based on a lower bound and a bin width
+--
+-- To be used as a quantization function
+bin :: (Ord a, Num a, Enum i) =>
+       a  -- ^ Lower bound
+    -> a  -- ^ Bin width
+    -> a  -- ^ Test value
+    -> i
+bin = gbin (<) (+)    
+
+gbin :: Enum i => (a -> b -> Bool) -> (b -> c -> b) -> b -> c -> a -> i
+gbin fdecide fstep xmin dx x = go (toEnum 0) xmin where
+  go i xthr | fdecide x xthr = i
+            | otherwise = go (succ i) (fstep xthr dx)
+
 
 -- * Little abstract friends
-
--- insideOut2 :: (Maybe a, Maybe b) -> Maybe (a, b)
--- insideOut2 mm = case mm of
---   (Just a, Just b) -> Just (a, b)
---   _ -> Nothing
 
 left :: (b -> c) -> b -> (c, b)
 left f = f &&& id

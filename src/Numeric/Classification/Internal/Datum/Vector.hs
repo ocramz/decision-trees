@@ -1,4 +1,4 @@
-{-# language DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# language DeriveFunctor, DeriveFoldable, DeriveTraversable, GeneralizedNewtypeDeriving #-}
 module Numeric.Classification.Internal.Datum.Vector where
 
 -- import qualified Data.Vector.Unboxed as VU
@@ -9,11 +9,14 @@ import Numeric.Classification.Exceptions
 
 import Prelude hiding (zip, unzip)
 
-newtype V a = V (V.Vector a) deriving (Eq, Show, Functor, Foldable, Traversable)
+newtype V a = V (V.Vector a) deriving (Eq, Show, Functor, Foldable, Traversable, Applicative, Monad)
 
 fromList :: [a] -> V a
 fromList = V . V.fromList
 {-# inline fromList #-}
+
+toList :: V a -> [a]
+toList (V vv) = V.toList vv
 
 zip :: V a -> V b -> V (a, b)
 zip (V v1) (V v2) = V $ V.zip v1 v2
@@ -42,10 +45,6 @@ dim :: V a -> Int
 dim (V vv) = V.length vv
 {-# inline dim #-}
 
--- foldrWithKey :: (Int -> a -> b -> b) -> b -> V a -> b
--- foldrWithKey f z (V vv) = foldr ins z $ zip [0..] (V.toList vv) where
---   ins (i, x) acc = f i x acc
-
 foldrWithKey :: (Int -> a -> b -> b) -> b -> V a -> b
 foldrWithKey f z vv = foldr ins z $ zip (fromList [0..]) vv where
   ins (i, x) acc = f i x acc
@@ -55,8 +54,6 @@ foldrWithKey f z vv = foldr ins z $ zip (fromList [0..]) vv where
 dataSplitDecision :: (a -> Bool) -> Int -> (V a -> Bool)
 dataSplitDecision p j dat = p (dat `indexUnsafe` j)
 
--- dataSplitDecision :: Ord j => (a -> Bool) -> j -> X j a -> Bool
--- dataSplitDecision p j dat = maybe False p (dat !? j)
 
 
 
