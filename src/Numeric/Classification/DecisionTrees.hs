@@ -39,15 +39,21 @@ unfoldTree :: (t -> Either a (d, t, t)) -> t -> Tree d a
 unfoldTree f x =
   either Leaf (\(d, l, r) -> Node d (unfoldTree f l) (unfoldTree f r) ) (f x)
 
--- | Dataset + local tree depth
-data TDs a = TDs { tdsDepth :: !Int, tds :: a } deriving (Eq, Show)
+-- | Tree state : list of candidate dataset cuts and dataset
+data TState a ds = TState {
+    tsFeatCuts :: [(a, Int)]
+  , tsDataset :: ds
+  } deriving (Eq, Show)
+
+-- | Tree state + local tree depth
+data TSd a ds = TSd { tsDepth :: !Int, tState :: TState a ds}
 
 -- | Tree growing global options
 data TOptions = TOptions {
     toMaxDepth :: !Int  -- ^ Max tree depth
   , toMinLeafSize :: !Int  -- ^ Minimum size of the contents of a leaf
   , toOrdering :: Order -- ^ Less than | Equal or larger than
-  } 
+  } deriving (Eq, Show)
 
 -- | Tree node metadata
 --
@@ -57,36 +63,39 @@ data TNData a = TNData {
   , tTStar :: a  -- ^ Decision threshold
   } deriving (Eq, Show)
 
--- | For binary decision trees, all the subsets of data that /pass/ the decision are referenced in the /left/ branch, and those that /fail/ the test end up in the /right/ branch.
-growTree :: (Foldable f, Functor f, Ord a, Ord k) =>
-            f (a, Int)  -- ^ (Data threshold, feature label)
-         -> TOptions  
-         -> Dataset k [XV.V a]  
-         -> Tree (TNData a) (Dataset k [XV.V a])
-growTree tjs opts ds = unfoldTree (treeRecurs tjs opts) tds0 where
-  tds0 = TDs 0 ds
 
--- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
-treeRecurs :: (Ord a, Ord k, Foldable t, Functor t) =>
-              t (a, Int)
-           -> TOptions
-           -> TDs (Dataset k [XV.V a])
-           -> Either
-           (Dataset k [XV.V a])
-           (TNData a, TDs (Dataset k [XV.V a]), TDs (Dataset k [XV.V a]))
-treeRecurs tjList (TOptions maxdepth minls ord) (TDs depth ds)
-  | q1 || q2 = Left ds
-  | otherwise = Right (mdata, tdsl, tdsr)
-  where
-    szq d = size d <= minls
-    q1 = depth >= maxdepth
-    q2 = szq dsl || szq dsr
-    mdata = TNData jstar tstar
-    (tstar, jstar, dsl, dsr) = maxInfoGainSplit tjList ordf ds
-    ordf = fromOrder ord
-    d' = depth + 1
-    tdsl = TDs d' dsl
-    tdsr = TDs d' dsr
+-- -- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
+-- -- treeRecurs :: (Ord a, Ord k, Foldable t, Functor t) =>
+-- --               t (a, Int)
+-- --            -> TOptions
+-- --            -> TDs (Dataset k [XV.V a])
+-- --            -> Either
+-- --            (Dataset k [XV.V a])
+-- --            (TNData a, TDs (Dataset k [XV.V a]), TDs (Dataset k [XV.V a]))
+-- treeRecurs (TOptions maxdepth minls ord) (TState depth tjList ds)
+--   | q1 || q2 = Left ds
+--   | otherwise = Right (mdata, tdsl, tdsr)
+--   where
+--     szq d = size d <= minls
+--     q1 = depth >= maxdepth
+--     q2 = szq dsl || szq dsr
+--     mdata = TNData jstar tstar
+--     (tstar, jstar, dsl, dsr) = maxInfoGainSplit tjList ordf ds
+--     ordf = fromOrder ord
+--     d' = depth + 1
+--     tdsl = TDs d' dsl
+--     tdsr = TDs d' dsr
+
+
+-- | For binary decision trees, all the subsets of data that /pass/ the decision are referenced in the /left/ branch, and those that /fail/ the test end up in the /right/ branch.
+-- growTree :: (Foldable f, Functor f, Ord a, Ord k) =>
+--             f (a, Int)  -- ^ (Data threshold, feature label)
+--          -> TOptions  
+--          -> Dataset k [XV.V a]  
+--          -> Tree (TNData a) (Dataset k [XV.V a])
+-- growTree tjs opts ds = unfoldTree (treeRecurs tjs opts) tds0 where
+--   tds0 = TDs 0 ds
+
 
 
 {- | Note (OPTIMIZATIONS maxInfoGainSplit)
@@ -96,6 +105,8 @@ treeRecurs tjList (TOptions maxdepth minls ord) (TDs depth ds)
 2. " " " " , remove /all/ (threshold, index) pairs that are subsumed by the successful test (e.g in the test ((<), 3.2, 27) , remove all [(t, 27) | t <- [tmin ..], t < 3.2 ] )
 -}
 
+-- maxInfoGainSplit_ decision (TState tjs ds) = undefined where
+--   infog (t, j) = (t, j, h)
 
 
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
