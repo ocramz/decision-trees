@@ -29,7 +29,7 @@ import Numeric.Classification.Exceptions
 
 -- | A binary tree.
 --
--- We can attach metadata at branching point.
+-- Each leaf carries data of type 'a' and we can attach metadata of type 'd' at each branching point.
 data Tree d a =
     Node d (Tree d a) (Tree d a)
   | Leaf a
@@ -46,19 +46,23 @@ data TDs a = TDs { tdsDepth :: !Int, tds :: a } deriving (Eq, Show)
 -- | Tree growing global options
 data TOptions = TOptions {
     toMaxDepth :: !Int  -- ^ Max tree depth
-  , toMinLeafSize :: !Int
-  , toOrdering :: Order -- ^ (<) or (>=)
+  , toMinLeafSize :: !Int  -- ^ Minimum size of the contents of a leaf
+  , toOrdering :: Order -- ^ Less than | Equal or larger than
   } 
 
 -- | Tree node metadata
+--
+-- For decision trees, at each node we store the decision feature and its decision threshold
 data TNData a = TNData {
-    tJStar :: !Int
-  , tTStar :: a } deriving (Eq, Show)
+    tJStar :: !Int  -- ^ Decision feature index
+  , tTStar :: a  -- ^ Decision threshold
+  } deriving (Eq, Show)
 
+-- | For binary decision trees, all the subsets of data that /pass/ the decision are referenced in the /left/ branch, and those that /fail/ the test end up in the /right/ branch.
 growTree :: (Foldable f, Functor f, Ord a, Ord k) =>
-            f (a, Int)
-         -> TOptions
-         -> Dataset k [XV.V a]
+            f (a, Int)  -- ^ (Data threshold, feature label)
+         -> TOptions  
+         -> Dataset k [XV.V a]  
          -> Tree (TNData a) (Dataset k [XV.V a])
 growTree tjs opts ds = unfoldTree (treeRecurs tjs opts) tds0 where
   tds0 = TDs 0 ds
@@ -177,10 +181,11 @@ uniquesEnum :: (Functor t, Foldable t, Foldable v, Enum a) =>
         -> IM.IntMap a
 uniquesEnum = uniques fromEnum
 
+-- | First converts each datapoint into an 'IntMap', and computes all the unique values via 'IM.union' 
 uniques :: (Functor t, Foldable t, Foldable v) =>
-           (a -> IM.Key)
-        -> Dataset k (t (v a))
-        -> IM.IntMap a
+           (a -> IM.Key)  -- ^ Key function (i.e. quantization/binning decision)
+        -> Dataset k (t (v a)) 
+        -> IM.IntMap a  
 uniques kf (Dataset ds) = M.foldr insf IM.empty ds where
   insf im acc = uniquesClass kf im `IM.union` acc
 
