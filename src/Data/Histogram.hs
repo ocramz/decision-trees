@@ -54,6 +54,8 @@ data Histogram k a = Histogram {
   , getHistogram :: M.Map k (Count [a])
   }
 
+
+-- TODO probably we can split this in two stages and compute the entropy only from a normalized histogram 
 entropy :: Floating h => Histogram k a -> h
 entropy (Histogram _ mm) = sum plp where
   plp = fmap (\p -> p * logBase 2 p) ps
