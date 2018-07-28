@@ -10,9 +10,8 @@ import GHC.Generics
 import Control.Monad.Catch (MonadThrow(..))
 import qualified Data.Vector as V
 
-irisKV :: (MonadThrow m, Applicative f) => Iris -> m (Int, f (V Double))
-irisKV (Iris sl sw pl pw iclass) = do
-  let lab = fromEnum iclass
+irisKV :: (MonadThrow m, Applicative f) => Iris -> m (IrisClass, f (V Double))
+irisKV (Iris sl sw pl pw lab) = do
   iv <- mkV 4 $ V.fromList [sl, sw, pl, pw]
   pure (lab, pure iv)
 
