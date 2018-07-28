@@ -39,7 +39,6 @@ unfoldTree :: (t -> Either a (d, t, t)) -> t -> Tree d a
 unfoldTree f x =
   either Leaf (\(d, l, r) -> Node d (unfoldTree f l) (unfoldTree f r) ) (f x)
 
-
 -- | Dataset + local tree depth
 data TDs a = TDs { tdsDepth :: !Int, tds :: a } deriving (Eq, Show)
 
@@ -90,6 +89,15 @@ treeRecurs tjList (TOptions maxdepth minls ord) (TDs depth ds)
     tdsr = TDs d' dsr
 
 
+{- | Note (OPTIMIZATIONS maxInfoGainSplit)
+
+1. After splitting a dataset, remove the (threshold, feature index) pair corresponding to the succesful split
+
+2. " " " " , remove /all/ (threshold, index) pairs that are subsumed by the successful test (e.g in the test ((<), 3.2, 27) , remove all [(t, 27) | t <- [tmin ..], t < 3.2 ] )
+-}
+
+
+
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 --
 -- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'  
@@ -131,7 +139,7 @@ splitDatasetAtAttr p j ds = (dsl, pl, dsr, pr) where
   pl = sl / s0
   pr = sr / s0 
 
--- | Partition a Dataset in two, according to a decision function
+-- | Partition a Dataset in two, according to a decision predicate applied to a given feature.
 --
 -- e.g. "is the j'th component of datum X_i larger than threshold t ?" 
 partition :: (Foldable t, Ord k) =>
@@ -141,16 +149,9 @@ partition :: (Foldable t, Ord k) =>
            -> (Dataset k [XV.V a], Dataset k [XV.V a])
 partition p j ds@Dataset{} = foldrWithKey insf (empty, empty) ds where
   insf k lrow (l, r) = (insert k lp l, insert k rp r) where    
-    (lp, rp) = partitionX p j lrow
+    (lp, rp) = partition1 (XV.dataSplitDecision p j) lrow 
 
--- | Partition a Foldable of data [X ..] according to the values taken by their j'th feature
-partitionX :: (Foldable t) =>
-               (a -> Bool)  -- ^ Decision function (element-level)
-            -> Int   -- ^ Feature index
-            -> t (XV.V a)   -- ^ Data
-            -> ([XV.V a], [XV.V a]) -- ^ Positive decision in the left bucket, negative in the right
-partitionX p j = partition1 (XV.dataSplitDecision p j)
-
+-- | Partition a Foldable in two lists according to a predicate
 partition1 :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
 partition1 p = foldr ins ([], [])  where
   ins x (l, r) | p x = (x : l, r)
@@ -159,57 +160,9 @@ partition1 p = foldr ins ([], [])  where
 
 
 
--- | tjs := T * J where
--- T := unique data values
--- J := feature indices
---
--- NB : if `a` is a floating point type, the "key function" kf will have to quantize it into a histogram
--- tjs :: (Functor t, Foldable t, Foldable v) =>
---        (a -> IM.Key)  -- ^ Quantization function
---     -> Int   -- ^ Number of features
---     -> Dataset k (t (v a))
---     -> [(a, Int)]
--- tjs kf n ds = [(t, j) | j <- js, t <- ts] where
---   js = [0 .. n-1]
---   ts = map snd . IM.toList $ uniques kf ds
-
-
--- * Unique dataset entries
-
--- uniquesEnum :: (Functor t, Foldable t, Foldable v, Enum a) =>
---            Dataset k (t (v a))
---         -> IM.IntMap a
--- uniquesEnum = uniques fromEnum
-
--- -- | First converts each datapoint into an 'IntMap', and computes all the unique values via 'IM.union' 
--- uniques :: (Functor t, Foldable t, Foldable v) =>
---            (a -> IM.Key)  -- ^ Key function (i.e. quantization/binning decision)
---         -> Dataset k (t (v a)) 
---         -> IM.IntMap a  
--- uniques kf (Dataset ds) = M.foldr insf IM.empty ds where
---   insf im acc = uniquesClass kf im `IM.union` acc
-
--- uniquesClass :: (Functor t, Foldable t, Foldable v) =>
---                 (a -> IM.Key)
---              -> t (v a)
---              -> IM.IntMap a
--- uniquesClass kf xs = foldr IM.union IM.empty $ fromFoldableIM kf <$> xs
-
--- featureThreshValues :: (Traversable t, Applicative v, Ord a, Num a) =>
---            a
---         -> a
---         -> t (v a)
---         -> v [a]
--- featureThreshValues x0 dx xs = map snd . IM.toList <$> featureSummary (fromFoldableIM binf) xs
---   where
---     binf = bin x0 dx
-
-
   
 fromFoldableIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap a
 fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
-
-
 
 
 
