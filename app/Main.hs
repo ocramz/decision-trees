@@ -10,13 +10,17 @@ import GHC.Generics
 import Control.Monad.Catch (MonadThrow(..))
 import qualified Data.Vector as V
 
-irisV :: MonadThrow m => Iris -> m (V Double)
-irisV (Iris sl sw pl pw iclass) = mkV 5 $ V.fromList [sl, sw, pl, pw, iclassd] where
-  iclassd = fromIntegral (fromEnum iclass)
+irisKV :: (MonadThrow m, Applicative f) => Iris -> m (Int, f (V Double))
+irisKV (Iris sl sw pl pw iclass) = do
+  let lab = fromEnum iclass
+  iv <- mkV 4 $ V.fromList [sl, sw, pl, pw]
+  pure (lab, pure iv)
 
+-- main = print "hello!"
 
 main = do --print $ head iris
-  iv <- traverse irisV iris -- irisV $ head iris
-  print iv
+  ivs <- traverse irisKV iris -- irisV $ head iris
+  let ivDs = fromListWith (++) ivs
+  print ivDs
 
 

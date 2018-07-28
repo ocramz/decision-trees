@@ -1,8 +1,8 @@
 module Numeric.Classification (
   -- * Tree
-  Tree, growTree, TOptions(..), Order(..), TNData(..),
+  Tree(..), growTree, TOptions(..), Order(..), TNData(..),
   -- * Dataset
-  Dataset(..), fromList, toList, uniques,
+  Dataset(..), fromList, fromListWith, toList, uniques,
   -- * Data point
   XV.V(..), XV.mkV
   ) where

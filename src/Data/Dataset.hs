@@ -24,6 +24,9 @@ foldlWithKey' f z (Dataset ds) = M.foldlWithKey' f z ds
 fromList :: Ord k => [(k, a)] -> Dataset k a
 fromList ld = Dataset $ M.fromList ld
 
+fromListWith :: Ord k => (a -> a -> a) -> [(k, a)] -> Dataset k a
+fromListWith f ld = Dataset $ M.fromListWith f ld
+
 toList :: Dataset k a -> [(k, a)]
 toList (Dataset ds) = M.toList ds
 
