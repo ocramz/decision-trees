@@ -29,11 +29,11 @@ irisLabels = FeatureLabels $ IM.fromList $ zip [0..] ["Sepal length", "Sepal wid
 
 main :: IO ()
 main = do
-  (CLIOptions minls maxtd bindx) <-
+  (CLIOptions minls maxtd xmin xmax bindx) <-
     execParser $ info (cliOptions <**> helper) (fullDesc <> header "Iris")
   ivs <- traverse irisKV iris 
   let ivDs = fromListWith (++) ivs
-      tjs = [(j, t) | j <- [0..3], t <- [0, bindx .. 10]]
+      tjs = [(j, t) | j <- [0..3], t <- [xmin, bindx .. xmax]]
       opts = TOptions maxtd minls LessThan
   -- print ivDs
   -- print $ uniques round ivDs
@@ -41,7 +41,7 @@ main = do
   -- print tr
   putStrLn ""
   putStrLn $ show opts
-  putStrLn $ drawDecisionTree irisLabels opts $ entropyR <$> tr -- $ void tr
+  putStrLn $ drawDecisionTree irisLabels opts $ tr --  entropyR <$> tr -- $ void tr
 
 
 
@@ -50,6 +50,8 @@ main = do
 data CLIOptions a = CLIOptions {
     optMinLeafSize :: !Int
   , optMaxTreeDepth :: !Int
+  , optFeatureMin :: a
+  , optFeatureMax :: a
   , optBinSize :: a } deriving (Eq, Show)
 
 cliOptions :: Parser (CLIOptions Double)
@@ -69,13 +71,26 @@ cliOptions = CLIOptions <$>
   <> value 5
   <> metavar "INT" ) <*>
   option auto (
+  long "feature-min"
+  <> short 'a'
+  <> help "Minimum feature value"
+  <> showDefault
+  <> value 0
+  <> metavar "DOUBLE" ) <*>
+  option auto (
+  long "feature-max"
+  <> short 'b'
+  <> help "Maximum feature value"
+  <> showDefault
+  <> value 10
+  <> metavar "DOUBLE" ) <*>  
+  option auto (
   long "bin-size"
   <> short 'x'
   <> help "Bin size"
   <> showDefault
   <> value 0.2
-  <> metavar "DOUBLE"
-              )
+  <> metavar "DOUBLE" )
 
 
 -- sample :: Parser Sample
