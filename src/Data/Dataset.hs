@@ -1,6 +1,9 @@
 {-# language DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Data.Dataset where
 
+import qualified Data.Foldable as F (maximumBy)
+import Data.Ord (comparing)
+
 import qualified Data.Map.Strict as M (Map(..), empty, fromList, toList, fromListWith, mapWithKey, foldl', foldrWithKey, foldlWithKey', insert)
 import qualified Data.Map.Internal.Debug as M (showTree)
 
@@ -40,6 +43,10 @@ toList (Dataset ds) = M.toList ds
 -- | Size of the dataset
 size :: Foldable t => Dataset k (t a) -> Int
 size (Dataset ds) = M.foldl' (\acc l -> acc + length l) 0 ds
+
+-- | Maximum likelihood estimate of class label
+mlClass :: Dataset k a -> k
+mlClass = fst . F.maximumBy (comparing length) . toList
 
 -- | Number of items in each class
 sizeClasses :: (Foldable t, Num n) => Dataset k (t a) -> M.Map k n

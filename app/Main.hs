@@ -5,8 +5,11 @@ import Numeric.Classification
 import Numeric.Datasets.Iris (Iris(..), IrisClass(..), iris)
 -- import GHC.Generics
 import Control.Monad.Catch (MonadThrow(..))
+
+import qualified Data.Foldable as F
 import qualified Data.Vector as V
 import qualified Data.IntMap as IM
+import qualified Data.Map as M
 import qualified Data.Set as S
 import Control.Monad (void)
 
@@ -42,8 +45,9 @@ main = do
   -- print tr
   putStrLn ""
   putStrLn $ show cliopts
-  putStrLn $ drawDecisionTree irisLabels opts $ tr 
-  putStrLn $ drawDecisionTree irisLabels opts $ entropyR <$> tr -- $ void tr  
+  -- putStrLn $ drawDecisionTree irisLabels opts $ tr
+  putStrLn $ drawDecisionTree irisLabels opts $ M.toList . sizeClasses <$> tr 
+  -- putStrLn $ drawDecisionTree irisLabels opts $ entropyR <$> tr -- $ void tr  
 
 
 

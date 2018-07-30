@@ -4,6 +4,7 @@ module Numeric.Classification (
   , partitionJoint
   -- * Dataset
   , D.Dataset(..), D.fromListWith -- D.showDsTree,
+  , D.mlClass, D.sizeClasses
   -- * Data point
     , X.V(..), X.mkV, (X.!), X.indexUnsafe, X.dim, X.toListV, X.fromListV
     , X.FeatureLabels(..)

@@ -106,6 +106,8 @@ treeUnfoldStep :: (Ord a, Ord k) =>
            -> Either (Dataset k [XV.V a]) (TNData a, TSd k a, TSd k a)
 treeUnfoldStep (TOptions maxdepth minls ord) (TSd depth tst)
   | depth >= maxdepth || sizeDs tst <= minls = Left (tsDataset tst)
+  | sizeDs tsl == 0 = Left (tsDataset tsr)
+  | sizeDs tsr == 0 = Left (tsDataset tsl)
   | otherwise = Right (mdata, tdsl, tdsr)
   where
     sizeDs = size . tsDataset
