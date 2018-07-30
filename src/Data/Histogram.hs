@@ -1,5 +1,5 @@
 {-# language DeriveFunctor, DeriveFoldable #-}
-module Data.Histogram where
+module Data.Histogram (Histogram , mkHistogram, getHistogram) where
 
 import qualified Data.Foldable as F
 import Data.Monoid (Sum(..))
@@ -8,20 +8,22 @@ import qualified Data.Map.Strict as M
 import Control.Arrow ((&&&))
 
 
+data Histogram k a = Histogram {
+    binFunction :: a -> k
+  , unHistogram :: M.Map k (Count [a]) }
+
+instance (Eq k, Eq a) => Eq (Histogram k a) where
+  h1 == h2 = unHistogram h1 == unHistogram h2
+
+instance (Show k, Show a) => Show (Histogram k a) where
+  show h = show (unHistogram h)
 
 
+mkHistogram :: (Ord k, Foldable t) => (a -> k) -> t a -> Histogram k a
+mkHistogram kf = addToHistogram (empty kf)   
 
-
--- -- | Populate a histogram 
--- fillHistogramL :: (Ord k, Foldable t) => (a -> k) -> t a -> M.Map k (Count [a])
--- fillHistogramL kf xs =  
---   M.fromListWith (<>) $ map (kf &&& mkCount1) $ F.toList xs
-
--- --  Some binning/quantization function
--- -- quantize :: (Ord a, Num a) => a -> IM.Key
--- quantize x | x < 0 = 0
---            | x >= 0 && x < 5 = 1
---            | otherwise = 2
+getHistogram :: Histogram k a -> M.Map k Int
+getHistogram h = getSum . getCount <$> unHistogram h
 
 getNElems :: (Foldable t, Num n) => t (Count a) -> n
 getNElems = fromIntegral . getSum . foldMap getCount
@@ -45,14 +47,9 @@ addToHistogram h0 xs = Histogram kf (M.union hm0 hm1) where
   (Histogram kf hm0) = h0
   hm1 = M.fromListWith (<>) $ map (kf &&& mkCount1) $ F.toList xs
 
-mkHistogram :: (Ord k, Foldable t) => (a -> k) -> t a -> Histogram k a
-mkHistogram kf = addToHistogram (empty kf)   
 
--- | It's not a Functor because 'a' appears in argument position
-data Histogram k a = Histogram {
-    binFunction :: a -> k
-  , getHistogram :: M.Map k (Count [a])
-  }
+
+
 
 
 -- TODO probably we can split this in two stages and compute the entropy only from a normalized histogram 
@@ -61,12 +58,6 @@ entropy (Histogram _ mm) = sum plp where
   plp = fmap (\p -> p * logBase 2 p) ps
   ps = fmap ((/ n) . fromIntegral . getSum . getCount) mm 
   n = getNElems mm
-
-instance (Eq k, Eq a) => Eq (Histogram k a) where
-  h1 == h2 = getHistogram h1 == getHistogram h2
-
-instance (Show k, Show a) => Show (Histogram k a) where
-  show h = show (getHistogram h)
 
 
 

@@ -166,7 +166,12 @@ partition1 p = foldr ins ([], [])  where
 fromFoldableIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap a
 fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
 
-
+-- fromFoldableWithIM :: Foldable t =>
+--                       (a -> a -> a)
+--                    -> (a -> IM.Key)
+--                    -> t a
+--                    -> IM.IntMap a
+fromFoldableWithIM kf xs = IM.fromListWith (++) $ map (kf &&& (: [])) $ F.toList xs
 
 -- | A well-defined Ordering, for strict half-plane separation
 data Order = LessThan | GreaterOrEqual deriving (Eq, Show, Ord, Enum, Bounded)
