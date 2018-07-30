@@ -98,14 +98,14 @@ instance Show a => Show (TNData a) where
 
 
 -- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
+--
+-- NB generates empty leaves
 treeUnfoldStep :: (Ord a, Ord k) =>
               TOptions
            -> TSd k a
            -> Either (Dataset k [XV.V a]) (TNData a, TSd k a, TSd k a)
 treeUnfoldStep (TOptions maxdepth minls ord) (TSd depth tst)
   | depth >= maxdepth || sizeDs tst <= minls = Left (tsDataset tst)
-  -- | sizeDs tsl == 0 = Left (tsDataset tsr)    -- FIXME handle this at fold time
-  -- | sizeDs tsr == 0 = Left (tsDataset tsl)  
   | otherwise = Right (mdata, tdsl, tdsr)
   where
     sizeDs = size . tsDataset
