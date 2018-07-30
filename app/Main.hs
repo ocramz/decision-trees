@@ -7,6 +7,7 @@ import Numeric.Datasets.Iris (Iris(..), IrisClass(..), iris)
 import Control.Monad.Catch (MonadThrow(..))
 import qualified Data.Vector as V
 import qualified Data.IntMap as IM
+import qualified Data.Set as S
 import Control.Monad (void)
 
 import Options.Applicative
@@ -33,7 +34,7 @@ main = do
     execParser $ info (cliOptions <**> helper) (fullDesc <> header "Iris")
   ivs <- traverse irisKV iris 
   let ivDs = fromListWith (++) ivs
-      tjs = [(j, t) | j <- [0..3], t <- [xmin, bindx .. xmax]]
+      tjs = S.fromList [(j, t) | j <- [0..3], t <- [xmin, bindx .. xmax]]
       opts = TOptions maxtd minls LessThan
   -- print ivDs
   -- print $ uniques round ivDs
@@ -42,8 +43,8 @@ main = do
   putStrLn ""
   putStrLn $ show cliopts
   let vps = fromListV [(< 6.5), (> 3), (< 2), (< 1)]
-  putStrLn $ show $ partitionJoint vps ivDs
-  -- putStrLn $ drawDecisionTree irisLabels opts $ tr --  entropyR <$> tr -- $ void tr
+  -- putStrLn $ show $ partitionJoint vps ivDs
+  putStrLn $ drawDecisionTree irisLabels opts $ tr --  entropyR <$> tr -- $ void tr
 
 
 

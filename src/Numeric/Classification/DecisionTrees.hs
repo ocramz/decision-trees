@@ -8,8 +8,8 @@ import qualified Data.Foldable as F
 import Data.Bifunctor (Bifunctor(..))
 
 import qualified Data.Map.Strict as M (Map(..))
-
 import qualified Data.IntMap as IM
+import qualified Data.Set as S
 
 -- import Data.Function (on)
 import Data.Ord (comparing)
@@ -72,7 +72,7 @@ nodeLabel fls (TOptions _ _ ord) (TNData j t) = expr where
 
 -- | Tree state : list of candidate dataset cuts and dataset
 data TState k a  = TState {
-    tsFeatCuts :: [(Int, a)]
+    tsFeatCuts :: S.Set (Int, a)
   , tsDataset :: Dataset k [XV.V a] } 
 
 -- | Tree state + local tree depth
@@ -118,21 +118,12 @@ treeRecurs (TOptions maxdepth minls ord) (TSd depth tst)
 -- | For binary decision trees, all the subsets of data that /pass/ the decision are referenced in the /left/ branch, and those that /fail/ the test end up in the /right/ branch.
 growTree :: (Ord a, Ord k) =>
             TOptions
-         -> [(Int, a)]   -- ^ (Data threshold, feature label)
+         -> S.Set (Int, a)   -- ^ (Data threshold, feature label)
          -> Dataset k [XV.V a]
          -> Tree (TNData a) (Dataset k [XV.V a])
 growTree opts tjs0 ds = unfoldTree (treeRecurs opts) tds0 where
   tds0 = TSd 0 (TState tjs0 ds)
 
-
--- growTree' :: (Fractional a, Ord k, Ord a) =>
---              TOptions
---           -> a
---           -> a
---           -> Dataset k [XV.V a]
---           -> Tree (TNData a) (Dataset k [XV.V a])
--- growTree' opts xmin dx ds = growTree opts tjs0 ds where
---   tjs0 = concatMap (allCuts xmin dx) ds
 
 
 
@@ -144,15 +135,16 @@ growTree opts tjs0 ds = unfoldTree (treeRecurs opts) tds0 where
 -}
 
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
-maxInfoGainSplit :: (Ord k, Eq a) =>
+maxInfoGainSplit :: (Ord k, Ord a, Eq a) =>
                     (a -> a -> Bool)
                  -> TState k a
                  -> (Int, a, TState k a, TState k a)
 maxInfoGainSplit decision (TState tjs ds) = (jstar, tstar, TState tjs' dsl, TState tjs' dsr) where
-  tjs' = filter (/= (jstar, tstar)) tjs  -- See Note (OPTIMIZATIONS maxInfoGainSPlit)
-  (jstar, tstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog `map` tjs  
+  tjs' = S.delete (jstar, tstar) tjs  -- See Note (OPTIMIZATIONS maxInfoGainSPlit)
+  (jstar, tstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog `map` (S.toList tjs)  
   infog (j, t) = (j, t, h, dsl, dsr) where
-    (h, dsl, dsr) = infoGainR (decision t) j ds  
+    (h, dsl, dsr) = infoGainR (decision t) j ds
+
 
 third5 :: (a, b, c, d, e) -> c
 third5 (_, _, c, _, _) = c
