@@ -7,6 +7,7 @@ import Numeric.Datasets.Iris (Iris(..), IrisClass(..), iris)
 import Control.Monad.Catch (MonadThrow(..))
 import qualified Data.Vector as V
 import qualified Data.IntMap as IM
+import Control.Monad (void)
 
 -- main = print "hello!"
 
@@ -31,6 +32,7 @@ main = do
   -- print ivDs
   -- print $ uniques round ivDs
       tr = growTree' treeOptions 0 0.5 ivDs
-  print tr      
+  -- print $ void tr
+  print $ concatMap (allCuts 0 0.5) ivDs
 
 

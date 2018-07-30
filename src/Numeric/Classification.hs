@@ -4,7 +4,9 @@ module Numeric.Classification (
   -- * Dataset
   D.Dataset(..), D.fromListWith, 
   -- * Data point
-  X.V(..), X.mkV, (X.!), X.indexUnsafe, X.dim, X.toList, X.fromList
+  X.V(..), X.mkV, (X.!), X.indexUnsafe, X.dim, X.toList, X.fromList,
+  -- ** Helpers
+  allCuts
   )
   where
 
