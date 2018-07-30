@@ -42,6 +42,7 @@ unfoldTree :: (t -> Either a (d, t, t)) -> t -> Tree d a
 unfoldTree f x =
   either Leaf (\(d, l, r) -> Node d (unfoldTree f l) (unfoldTree f r) ) (f x)
 
+-- * Draw a decision tree 
 drawDecisionTree :: (Show a, PrintfArg a2) =>
                     XV.FeatureLabels
                  -> TOptions
@@ -97,22 +98,23 @@ instance Show a => Show (TNData a) where
 
 
 -- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
-treeRecurs :: (Ord a, Ord k) =>
+treeUnfoldStep :: (Ord a, Ord k) =>
               TOptions
            -> TSd k a
            -> Either (Dataset k [XV.V a]) (TNData a, TSd k a, TSd k a)
-treeRecurs (TOptions maxdepth minls ord) (TSd depth tst)
-  | q1 || q2 = Left (tsDataset tst)
+treeUnfoldStep (TOptions maxdepth minls ord) (TSd depth tst)
+  | depth >= maxdepth || sizeDs tst <= minls = Left (tsDataset tst)
+  -- | sizeDs tsl == 0 = Left (tsDataset tsr)    -- FIXME handle this at fold time
+  -- | sizeDs tsr == 0 = Left (tsDataset tsl)  
   | otherwise = Right (mdata, tdsl, tdsr)
   where
-    q1 = depth >= maxdepth
-    q2 = size (tsDataset tst) <= minls
+    sizeDs = size . tsDataset
     mdata = TNData jstar tstar
-    (jstar, tstar, dsl, dsr) = maxInfoGainSplit ordf tst
+    (jstar, tstar, tsl, tsr) = maxInfoGainSplit ordf tst
     ordf = fromOrder ord
     d' = depth + 1
-    tdsl = TSd d' dsl
-    tdsr = TSd d' dsr
+    tdsl = TSd d' tsl
+    tdsr = TSd d' tsr
 
 
 -- | For binary decision trees, all the subsets of data that /pass/ the decision are referenced in the /left/ branch, and those that /fail/ the test end up in the /right/ branch.
@@ -121,7 +123,7 @@ growTree :: (Ord a, Ord k) =>
          -> S.Set (Int, a)   -- ^ (Data threshold, feature label)
          -> Dataset k [XV.V a]
          -> Tree (TNData a) (Dataset k [XV.V a])
-growTree opts tjs0 ds = unfoldTree (treeRecurs opts) tds0 where
+growTree opts tjs0 ds = unfoldTree (treeUnfoldStep opts) tds0 where
   tds0 = TSd 0 (TState tjs0 ds)
 
 
