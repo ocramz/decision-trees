@@ -1,12 +1,13 @@
 module Numeric.Classification (
   -- * Tree
-  Tree(..), growTree, growTree', TOptions(..), Order(..), TNData(..),
+  Tree(..), growTree, TOptions(..), Order(..), TNData(..),
   -- * Dataset
   D.Dataset(..), D.fromListWith, 
   -- * Data point
-  X.V(..), X.mkV, (X.!), X.indexUnsafe, X.dim, X.toList, X.fromList,
-  -- ** Helpers
-  allCuts
+  X.V(..), X.mkV, (X.!), X.indexUnsafe, X.dim, X.toList, X.fromList
+  -- ,
+  -- -- ** Helpers
+  -- allCuts
   )
   where
 

@@ -60,7 +60,9 @@ data TOptions = TOptions {
 data TNData a = TNData {
     tJStar :: !Int  -- ^ Decision feature index
   , tTStar :: a  -- ^ Decision threshold
-  } deriving (Eq, Show)
+  } deriving (Eq)
+instance Show a => Show (TNData a) where
+  show (TNData j t) = unwords ["(j =", show j, ", t =", show t, ")"]
 
 
 -- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
@@ -72,9 +74,8 @@ treeRecurs (TOptions maxdepth minls ord) (TSd depth tst)
   | q1 || q2 = Left (tsDataset tst)
   | otherwise = Right (mdata, tdsl, tdsr)
   where
-    szq d = size d <= minls
     q1 = depth >= maxdepth
-    q2 = szq (tsDataset dsl) || szq (tsDataset dsr)
+    q2 = size (tsDataset tst) <= minls
     mdata = TNData jstar tstar
     (jstar, tstar, dsl, dsr) = maxInfoGainSplit ordf tst
     ordf = fromOrder ord
@@ -93,14 +94,14 @@ growTree opts tjs0 ds = unfoldTree (treeRecurs opts) tds0 where
   tds0 = TSd 0 (TState tjs0 ds)
 
 
-growTree' :: (Fractional a, Ord k, Ord a) =>
-             TOptions
-          -> a
-          -> a
-          -> Dataset k [XV.V a]
-          -> Tree (TNData a) (Dataset k [XV.V a])
-growTree' opts xmin dx ds = growTree opts tjs0 ds where
-  tjs0 = concatMap (allCuts xmin dx) ds
+-- growTree' :: (Fractional a, Ord k, Ord a) =>
+--              TOptions
+--           -> a
+--           -> a
+--           -> Dataset k [XV.V a]
+--           -> Tree (TNData a) (Dataset k [XV.V a])
+-- growTree' opts xmin dx ds = growTree opts tjs0 ds where
+--   tjs0 = concatMap (allCuts xmin dx) ds
 
 
 
