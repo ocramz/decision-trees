@@ -18,16 +18,22 @@ import Control.Monad.Catch (MonadThrow(..))
 -- import Control.Exception (Exception(..))
 -- import Data.Functor.Compose
 
+import System.Random.MWC
+import Control.Monad.Primitive
+
 import Data.Dataset
 import Numeric.InformationTheory (entropyR, gini)
 import Numeric.Classification.Internal.Datum (X)
-
 -- import qualified Numeric.Classification.Internal.Datum as X
 import qualified Numeric.Classification.Internal.Datum.Vector as XV
-
 import Numeric.Classification.Exceptions
 
 import Text.Printf (PrintfArg(..), printf)
+
+
+-- sample ran s gen = do
+--   i <- uniformR ran gen
+
 
 
 -- | A binary tree.
@@ -97,6 +103,15 @@ instance Show a => Show (TNData a) where
   show (TNData j t) = unwords ["(j =", show j, ", t =", show t, ")"]
 
 
+-- | For binary decision trees, all the subsets of data that /pass/ the decision are referenced in the /left/ branch, and those that /fail/ the test end up in the /right/ branch.
+growTree :: (Ord a, Ord k) =>
+            TOptions
+         -> S.Set (Int, a)   -- ^ (Data threshold, feature label)
+         -> Dataset k [XV.V a]
+         -> Tree (TNData a) (Dataset k [XV.V a])
+growTree opts tjs0 ds = unfoldTree (treeUnfoldStep opts) tds0 where
+  tds0 = TSd 0 (TState tjs0 ds)
+
 -- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
 --
 -- NB generates empty leaves
@@ -117,18 +132,6 @@ treeUnfoldStep (TOptions maxdepth minls ord) (TSd depth tst)
     d' = depth + 1
     tdsl = TSd d' tsl
     tdsr = TSd d' tsr
-
-
--- | For binary decision trees, all the subsets of data that /pass/ the decision are referenced in the /left/ branch, and those that /fail/ the test end up in the /right/ branch.
-growTree :: (Ord a, Ord k) =>
-            TOptions
-         -> S.Set (Int, a)   -- ^ (Data threshold, feature label)
-         -> Dataset k [XV.V a]
-         -> Tree (TNData a) (Dataset k [XV.V a])
-growTree opts tjs0 ds = unfoldTree (treeUnfoldStep opts) tds0 where
-  tds0 = TSd 0 (TState tjs0 ds)
-
-
 
 
 {- | Note (OPTIMIZATIONS maxInfoGainSplit)

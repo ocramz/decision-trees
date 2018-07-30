@@ -48,7 +48,7 @@ main = do
   -- putStrLn $ drawDecisionTree irisLabels opts $ tr
   putStrLn $ drawDecisionTree irisLabels opts $ M.toList . sizeClasses <$> tr 
   -- putStrLn $ drawDecisionTree irisLabels opts $ entropyR <$> tr -- $ void tr  
-
+  -- putStrLn $ drawDecisionTree irisLabels opts $ mlClass <$> tr -- $ void tr  
 
 
 -- * Optparse

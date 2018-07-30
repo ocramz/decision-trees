@@ -45,8 +45,10 @@ size :: Foldable t => Dataset k (t a) -> Int
 size (Dataset ds) = M.foldl' (\acc l -> acc + length l) 0 ds
 
 -- | Maximum likelihood estimate of class label
-mlClass :: Dataset k a -> k
-mlClass = fst . F.maximumBy (comparing length) . toList
+mlClass :: Dataset k [a] -> k
+mlClass = fst . F.maximumBy (comparing f) . toList where
+  f (_, ll) = length ll
+
 
 -- | Number of items in each class
 sizeClasses :: (Foldable t, Num n) => Dataset k (t a) -> M.Map k n
