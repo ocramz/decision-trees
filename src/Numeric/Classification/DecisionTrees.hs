@@ -40,19 +40,18 @@ unfoldTree f x =
   either Leaf (\(d, l, r) -> Node d (unfoldTree f l) (unfoldTree f r) ) (f x)
 
 -- | Tree state : list of candidate dataset cuts and dataset
-data TState a ds = TState {
-    tsFeatCuts :: [(a, Int)]
-  , tsDataset :: ds
-  } deriving (Eq, Show)
+data TState k j a  = TState {
+    tsFeatCuts :: [(j, a)]
+  , tsDataset :: Dataset k [XV.V a] } 
 
 -- | Tree state + local tree depth
-data TSd a ds = TSd { tsDepth :: !Int, tState :: TState a ds}
+data TSd k j a = TSd { tsDepth :: !Int, tState :: TState k j a }
 
 -- | Tree growing global options
 data TOptions = TOptions {
     toMaxDepth :: !Int  -- ^ Max tree depth
   , toMinLeafSize :: !Int  -- ^ Minimum size of the contents of a leaf
-  , toOrdering :: Order -- ^ Less than | Equal or larger than
+  , toOrder :: Order -- ^ Less than | Equal or larger than
   } deriving (Eq, Show)
 
 -- | Tree node metadata
@@ -64,37 +63,34 @@ data TNData a = TNData {
   } deriving (Eq, Show)
 
 
--- -- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
--- -- treeRecurs :: (Ord a, Ord k, Foldable t, Functor t) =>
--- --               t (a, Int)
--- --            -> TOptions
--- --            -> TDs (Dataset k [XV.V a])
--- --            -> Either
--- --            (Dataset k [XV.V a])
--- --            (TNData a, TDs (Dataset k [XV.V a]), TDs (Dataset k [XV.V a]))
--- treeRecurs (TOptions maxdepth minls ord) (TState depth tjList ds)
---   | q1 || q2 = Left ds
---   | otherwise = Right (mdata, tdsl, tdsr)
---   where
---     szq d = size d <= minls
---     q1 = depth >= maxdepth
---     q2 = szq dsl || szq dsr
---     mdata = TNData jstar tstar
---     (tstar, jstar, dsl, dsr) = maxInfoGainSplit tjList ordf ds
---     ordf = fromOrder ord
---     d' = depth + 1
---     tdsl = TDs d' dsl
---     tdsr = TDs d' dsr
+-- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
+treeRecurs :: (Ord a, Ord k) =>
+              TOptions
+           -> TSd k Int a
+           -> Either (Dataset k [XV.V a]) (TNData a, TSd k Int a, TSd k Int a)
+treeRecurs (TOptions maxdepth minls ord) (TSd depth tst)
+  | q1 || q2 = Left (tsDataset tst)
+  | otherwise = Right (mdata, tdsl, tdsr)
+  where
+    szq d = size d <= minls
+    q1 = depth >= maxdepth
+    q2 = szq (tsDataset dsl) || szq (tsDataset dsr)
+    mdata = TNData jstar tstar
+    (jstar, tstar, dsl, dsr) = maxInfoGainSplit ordf tst
+    ordf = fromOrder ord
+    d' = depth + 1
+    tdsl = TSd d' dsl
+    tdsr = TSd d' dsr
 
 
 -- | For binary decision trees, all the subsets of data that /pass/ the decision are referenced in the /left/ branch, and those that /fail/ the test end up in the /right/ branch.
--- growTree :: (Foldable f, Functor f, Ord a, Ord k) =>
---             f (a, Int)  -- ^ (Data threshold, feature label)
---          -> TOptions  
---          -> Dataset k [XV.V a]  
---          -> Tree (TNData a) (Dataset k [XV.V a])
--- growTree tjs opts ds = unfoldTree (treeRecurs tjs opts) tds0 where
---   tds0 = TDs 0 ds
+growTree :: (Ord a, Ord k) =>
+            TOptions
+         -> [(Int, a)]   -- ^ (Data threshold, feature label)
+         -> Dataset k [XV.V a]
+         -> Tree (TNData a) (Dataset k [XV.V a])
+growTree opts tjs0 ds = unfoldTree (treeRecurs opts) tds0 where
+  tds0 = TSd 0 (TState tjs0 ds)
 
 
 
@@ -102,25 +98,19 @@ data TNData a = TNData {
 
 1. After splitting a dataset, remove the (threshold, feature index) pair corresponding to the succesful split
 
-2. " " " " , remove /all/ (threshold, index) pairs that are subsumed by the successful test (e.g in the test ((<), 3.2, 27) , remove all [(t, 27) | t <- [tmin ..], t < 3.2 ] )
+2. " " " " , remove /all/ (threshold, index) pairs that are subsumed by the successful test (e.g in the test ((<), 3.2, 27) , remove all [(t, 27) | t <- [tmin ..], t < 3.2 ] ). This is only a useful optimization for /monotonic/ class boundaries.
 -}
 
--- maxInfoGainSplit_ decision (TState tjs ds) = undefined where
---   infog (t, j) = (t, j, h)
-
-
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
---
--- The decision thresholds can be obtained with 'uniques' or 'uniquesEnum'  
-maxInfoGainSplit :: (Foldable f, Functor f, Ord k) =>
-                    f (t, Int)          -- ^ (Decision thresholds, feature indices)
-                 -> (t -> a -> Bool)  -- ^ Comparison function
-                 -> Dataset k [XV.V a]
-                 -> (t, Int, Dataset k [XV.V a], Dataset k [XV.V a]) -- ^ Optimal dataset splitting (threshold, feature index), positive subset of the data, negative subset
-maxInfoGainSplit tjs decision ds = (tstar, jstar, dsl, dsr) where
-  (tstar, jstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog <$> tjs
-  infog (t, j) = (t, j, h, dsl, dsr) where
-    (h, dsl, dsr) = infoGainR (decision t) j ds
+maxInfoGainSplit :: (Ord k, Eq a) =>
+                    (a -> a -> Bool)
+                 -> TState k Int a
+                 -> (Int, a, TState k Int a, TState k Int a)
+maxInfoGainSplit decision (TState tjs ds) = (jstar, tstar, TState tjs' dsl, TState tjs' dsr) where
+  tjs' = filter (/= (jstar, tstar)) tjs  -- See Note (OPTIMIZATIONS maxInfoGainSPlit)
+  (jstar, tstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog `map` tjs  
+  infog (j, t) = (j, t, h, dsl, dsr) where
+    (h, dsl, dsr) = infoGainR (decision t) j ds  
 
 third5 :: (a, b, c, d, e) -> c
 third5 (_, _, c, _, _) = c
@@ -149,6 +139,7 @@ splitDatasetAtAttr p j ds = (dsl, pl, dsr, pr) where
   (s0, sl, sr) = (sz ds, sz dsl, sz dsr)
   pl = sl / s0
   pr = sr / s0 
+
 
 -- | Partition a Dataset in two, according to a decision predicate applied to a given feature.
 --
