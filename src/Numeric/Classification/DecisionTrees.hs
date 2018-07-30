@@ -93,6 +93,16 @@ growTree opts tjs0 ds = unfoldTree (treeRecurs opts) tds0 where
   tds0 = TSd 0 (TState tjs0 ds)
 
 
+growTree' :: (Fractional a, Ord k, Ord a) =>
+             TOptions
+          -> a
+          -> a
+          -> Dataset k [XV.V a]
+          -> Tree (TNData a) (Dataset k [XV.V a])
+growTree' opts xmin dx ds = growTree opts tjs0 ds where
+  tjs0 = concatMap (allCuts xmin dx) ds
+
+
 
 {- | Note (OPTIMIZATIONS maxInfoGainSplit)
 
