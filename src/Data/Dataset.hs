@@ -1,10 +1,14 @@
 {-# language DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Data.Dataset where
 
-import qualified Data.Map.Strict as M
+import qualified Data.Map.Strict as M (Map(..), empty, fromList, toList, fromListWith, mapWithKey, foldl', foldrWithKey, foldlWithKey', insert)
+import qualified Data.Map.Internal.Debug as M (showTree)
 
 -- | Labeled dataset represented as a 'Map'. The map keys are the class labels
 newtype Dataset k a = Dataset { unDataset :: M.Map k a } deriving (Eq, Show, Functor, Foldable, Traversable)
+
+-- showDsTree :: (Show k, Show a) => Dataset k a -> String
+-- showDsTree (Dataset mm) = M.showTree mm
 
 empty :: Dataset k a
 empty = Dataset M.empty

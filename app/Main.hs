@@ -40,7 +40,7 @@ main = do
   -- print $ uniques round ivDs
       tr = growTree treeOptions tjs ivDs
   -- print tr
-  print $ void tr
+  putStrLn $ drawTree $ entropyR <$> tr -- $ void tr
 
 
 
@@ -51,6 +51,7 @@ data CLIOptions a = CLIOptions {
   , optMaxTreeDepth :: !Int
   , optBinSize :: a } deriving (Eq, Show)
 
+cliOptions :: Parser (CLIOptions Double)
 cliOptions = CLIOptions <$>
   option auto (
   long "min-leaf-size"

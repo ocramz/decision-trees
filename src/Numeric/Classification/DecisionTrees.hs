@@ -7,7 +7,8 @@ import Control.Arrow ((&&&))
 import qualified Data.Foldable as F
 import Data.Bifunctor (Bifunctor(..))
 
-import qualified Data.Map.Strict as M
+import qualified Data.Map.Strict as M (Map(..))
+
 import qualified Data.IntMap as IM
 
 -- import Data.Function (on)
@@ -18,7 +19,7 @@ import Control.Monad.Catch (MonadThrow(..))
 -- import Data.Functor.Compose
 
 import Data.Dataset
-import Numeric.InformationTheory
+import Numeric.InformationTheory (entropyR, gini)
 import Numeric.Classification.Internal.Datum (X)
 
 -- import qualified Numeric.Classification.Internal.Datum as X
@@ -38,6 +39,30 @@ data Tree d a =
 unfoldTree :: (t -> Either a (d, t, t)) -> t -> Tree d a
 unfoldTree f x =
   either Leaf (\(d, l, r) -> Node d (unfoldTree f l) (unfoldTree f r) ) (f x)
+
+
+drawTree :: Show a => Tree d a -> String
+drawTree = unlines . draw
+  where
+    draw t = case t of
+      (Leaf a) ->
+        "|" : pad "`- " "   " [show a] -- (draw a)
+      (Node _ tl tr) ->
+        "|" : pad "+- " "|  " (draw tl) ++ draw tr
+    pad f other = zipWith (++) (f : repeat other)
+
+-- draw :: Tree String -> [String]
+-- draw (Node x ts0) = lines x ++ drawSubTrees ts0
+--   where
+--     drawSubTrees [] = []
+--     drawSubTrees [t] =
+--         "|" : shift "`- " "   " (draw t)
+--     drawSubTrees (t:ts) =
+--         "|" : shift "+- " "|  " (draw t) ++ drawSubTrees ts
+--     shift first other = zipWith (++) (first : repeat other)
+
+
+
 
 -- | Tree state : list of candidate dataset cuts and dataset
 data TState k a  = TState {
