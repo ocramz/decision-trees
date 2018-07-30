@@ -40,12 +40,12 @@ unfoldTree f x =
   either Leaf (\(d, l, r) -> Node d (unfoldTree f l) (unfoldTree f r) ) (f x)
 
 -- | Tree state : list of candidate dataset cuts and dataset
-data TState k j a  = TState {
-    tsFeatCuts :: [(j, a)]
+data TState k a  = TState {
+    tsFeatCuts :: [(Int, a)]
   , tsDataset :: Dataset k [XV.V a] } 
 
 -- | Tree state + local tree depth
-data TSd k j a = TSd { tsDepth :: !Int, tState :: TState k j a }
+data TSd k a = TSd { tsDepth :: !Int, tState :: TState k a }
 
 -- | Tree growing global options
 data TOptions = TOptions {
@@ -66,8 +66,8 @@ data TNData a = TNData {
 -- | Split decision: find feature (value, index) that maximizes the entropy drop (i.e the information gain, or KL divergence between the joint and factored datasets)
 treeRecurs :: (Ord a, Ord k) =>
               TOptions
-           -> TSd k Int a
-           -> Either (Dataset k [XV.V a]) (TNData a, TSd k Int a, TSd k Int a)
+           -> TSd k a
+           -> Either (Dataset k [XV.V a]) (TNData a, TSd k a, TSd k a)
 treeRecurs (TOptions maxdepth minls ord) (TSd depth tst)
   | q1 || q2 = Left (tsDataset tst)
   | otherwise = Right (mdata, tdsl, tdsr)
@@ -104,8 +104,8 @@ growTree opts tjs0 ds = unfoldTree (treeRecurs opts) tds0 where
 -- | Tabulate the information gain for a number of decision thresholds and return a decision function corresponding to the threshold that yields the maximum information gain.
 maxInfoGainSplit :: (Ord k, Eq a) =>
                     (a -> a -> Bool)
-                 -> TState k Int a
-                 -> (Int, a, TState k Int a, TState k Int a)
+                 -> TState k a
+                 -> (Int, a, TState k a, TState k a)
 maxInfoGainSplit decision (TState tjs ds) = (jstar, tstar, TState tjs' dsl, TState tjs' dsr) where
   tjs' = filter (/= (jstar, tstar)) tjs  -- See Note (OPTIMIZATIONS maxInfoGainSPlit)
   (jstar, tstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog `map` tjs  
@@ -162,23 +162,19 @@ partition1 p = foldr ins ([], [])  where
 
 
 
-  
-fromFoldableIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap a
-fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
-
-
+-- | All (j, t) cuts for a given class.
+allCuts :: (Traversable f, Applicative v, Foldable v, Fractional a, Ord a) => a -> a -> f (v a) -> [(Int, a)]
+allCuts xmin dx xs = concatMap ixed vls where
+  vls = zip [0..] $ F.toList $ featureBinnedMeans xmin dx xs
+  ixed (i, xs) = zip (repeat i) xs
 
 featureBinnedMeans :: (Traversable t, Applicative v, Fractional a, Ord a) =>
                       a  -- ^ Min value
                    -> a  -- ^ Bin width
                    -> t (v a) 
                    -> v [a]
-featureBinnedMeans xmin dx = featureSummary (binnedMeans xmin dx)
-
--- | Means of the binned values of a Foldable of numbers
-binnedMeans :: (Fractional a, Foldable t, Ord a) => a -> a -> t a -> [a]
-binnedMeans xmin dx xs = F.toList $ mean <$> fromFoldableAppendIM kf xs where
-  kf = bin xmin dx
+featureBinnedMeans xmin dx = featureSummary binnedMeans where
+  binnedMeans xs = F.toList $ mean <$> fromFoldableAppendIM (bin xmin dx) xs
 
 fromFoldableAppendIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap [a]
 fromFoldableAppendIM kf xs = IM.fromListWith (++) $ map (kf &&& (: [])) $ F.toList xs
