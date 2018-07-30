@@ -12,7 +12,7 @@ import Control.Monad (void)
 
 import Options.Applicative
 
--- main = print "hello!"
+
 
 irisKV :: (MonadThrow m, Applicative f) => Iris -> m (IrisClass, f (V Double))
 irisKV (Iris sl sw pl pw lab) = do
@@ -42,9 +42,10 @@ main = do
   -- print tr
   putStrLn ""
   putStrLn $ show cliopts
-  let vps = fromListV [(< 6.5), (> 3), (< 2), (< 1)]
+  -- let vps = fromListV [(< 6.5), (> 3), (< 2), (< 1)]
   -- putStrLn $ show $ partitionJoint vps ivDs
   putStrLn $ drawDecisionTree irisLabels opts $ tr --  entropyR <$> tr -- $ void tr
+  putStrLn $ drawDecisionTree irisLabels opts $ entropyR <$> tr -- $ void tr  
 
 
 
