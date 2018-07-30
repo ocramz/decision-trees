@@ -166,12 +166,28 @@ partition1 p = foldr ins ([], [])  where
 fromFoldableIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap a
 fromFoldableIM kf x = IM.fromList $ map (left kf) $ F.toList x
 
--- fromFoldableWithIM :: Foldable t =>
---                       (a -> a -> a)
---                    -> (a -> IM.Key)
---                    -> t a
---                    -> IM.IntMap a
-fromFoldableWithIM kf xs = IM.fromListWith (++) $ map (kf &&& (: [])) $ F.toList xs
+
+
+featureBinnedMeans :: (Traversable t, Applicative v, Fractional a, Ord a) =>
+                      a  -- ^ Min value
+                   -> a  -- ^ Bin width
+                   -> t (v a) 
+                   -> v [a]
+featureBinnedMeans xmin dx = featureSummary (binnedMeans xmin dx)
+
+-- | Means of the binned values of a Foldable of numbers
+binnedMeans :: (Fractional a, Foldable t, Ord a) => a -> a -> t a -> [a]
+binnedMeans xmin dx xs = F.toList $ mean <$> fromFoldableAppendIM kf xs where
+  kf = bin xmin dx
+
+fromFoldableAppendIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap [a]
+fromFoldableAppendIM kf xs = IM.fromListWith (++) $ map (kf &&& (: [])) $ F.toList xs
+
+mean :: (Fractional a, Foldable t) => t a -> a
+mean xs = sum xs / n where
+  n = fromIntegral $ length xs
+
+
 
 -- | A well-defined Ordering, for strict half-plane separation
 data Order = LessThan | GreaterOrEqual deriving (Eq, Show, Ord, Enum, Bounded)

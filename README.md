@@ -4,6 +4,3 @@
 
 Experiments with decision trees (representation, training and inference)
 
-## Algorithms
-
-* ID3
