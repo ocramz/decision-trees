@@ -65,11 +65,8 @@ foldrWithKey f z vv = foldr ins z $ zipV (fromListV [0..]) vv where
 dataSplitDecision :: (a -> Bool) -> Int -> (V a -> Bool)
 dataSplitDecision p j dat = p (dat `indexUnsafe` j)
 
-
-
-
-
-
+allComponents :: V (a -> Bool) -> V a -> Bool
+allComponents ps dat = all (== True) $ ps <*> dat 
 
 
 -- | Vectors with measurable entries

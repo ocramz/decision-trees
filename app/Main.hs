@@ -29,7 +29,7 @@ irisLabels = FeatureLabels $ IM.fromList $ zip [0..] ["Sepal length", "Sepal wid
 
 main :: IO ()
 main = do
-  (CLIOptions minls maxtd xmin xmax bindx) <-
+  cliopts@(CLIOptions minls maxtd xmin xmax bindx) <-
     execParser $ info (cliOptions <**> helper) (fullDesc <> header "Iris")
   ivs <- traverse irisKV iris 
   let ivDs = fromListWith (++) ivs
@@ -40,7 +40,7 @@ main = do
       tr = growTree opts tjs ivDs
   -- print tr
   putStrLn ""
-  putStrLn $ show opts
+  putStrLn $ show cliopts
   putStrLn $ drawDecisionTree irisLabels opts $ tr --  entropyR <$> tr -- $ void tr
 
 
