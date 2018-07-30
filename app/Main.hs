@@ -23,10 +23,9 @@ irisDataset = do
   ivs <- traverse irisKV iris 
   pure $ fromListWith (++) ivs  
 
--- treeOptions :: TOptions
--- treeOptions = TOptions 10 5 LessThan
+irisLabels :: FeatureLabels
+irisLabels = FeatureLabels $ IM.fromList $ zip [0..] ["Sepal length", "Sepal width", "Petal length", "Petal width"]
 
--- tjs = [(j, t) | j <- [0..4], t <- [0, 0.2 .. 10]]
 
 main :: IO ()
 main = do
@@ -35,12 +34,12 @@ main = do
   ivs <- traverse irisKV iris 
   let ivDs = fromListWith (++) ivs
       tjs = [(j, t) | j <- [0..3], t <- [0, bindx .. 10]]
-      treeOptions = TOptions minls maxtd LessThan
+      opts = TOptions minls maxtd LessThan
   -- print ivDs
   -- print $ uniques round ivDs
-      tr = growTree treeOptions tjs ivDs
+      tr = growTree opts tjs ivDs
   -- print tr
-  putStrLn $ drawTree $ entropyR <$> tr -- $ void tr
+  putStrLn $ drawDecisionTree irisLabels opts $ entropyR <$> tr -- $ void tr
 
 
 

@@ -1,31 +1,42 @@
 {-# language DeriveFunctor, DeriveFoldable, DeriveTraversable, GeneralizedNewtypeDeriving #-}
 module Numeric.Classification.Internal.Datum.Vector where
 
+import qualified Data.IntMap as IM
 -- import qualified Data.Vector.Unboxed as VU
 import qualified Data.Vector as V
 
 import Control.Monad.Catch (MonadThrow(..))
 import Numeric.Classification.Exceptions
 
-import Prelude hiding (zip, unzip)
+newtype FeatureLabels = FeatureLabels (IM.IntMap String) deriving (Eq, Show)
+
+featureLabels :: MonadThrow m => Int -> [String] -> m FeatureLabels
+featureLabels n ls
+  | length ls == n = pure $ FeatureLabels $ IM.fromList $ zip [0..] ls
+  | otherwise = throwM $ DimMismatchE "featureLabels" n (length ls)
+
+lookupFeatureLabelUnsafe :: IM.Key -> FeatureLabels -> String
+lookupFeatureLabelUnsafe i (FeatureLabels fl) = fl IM.! i
+
+  
 
 newtype V a = V (V.Vector a) deriving (Eq, Show, Functor, Foldable, Traversable, Applicative, Monad)
 
-fromList :: [a] -> V a
-fromList = V . V.fromList
-{-# inline fromList #-}
+fromListV :: [a] -> V a
+fromListV = V . V.fromList
+{-# inline fromListV #-}
 
-toList :: V a -> [a]
-toList (V vv) = V.toList vv
+toListV :: V a -> [a]
+toListV (V vv) = V.toList vv
 
-zip :: V a -> V b -> V (a, b)
-zip (V v1) (V v2) = V $ V.zip v1 v2
-{-# inline zip #-}
+zipV :: V a -> V b -> V (a, b)
+zipV (V v1) (V v2) = V $ V.zip v1 v2
+{-# inline zipV #-}
 
-unzip :: V (a, b) -> (V a, V b)
-unzip (V vs) = (V v1, V v2) where
+unzipV :: V (a, b) -> (V a, V b)
+unzipV (V vs) = (V v1, V v2) where
   (v1, v2) = V.unzip vs
-{-# inline unzip #-}  
+{-# inline unzipV #-}  
 
 mkV :: MonadThrow m => Int -> V.Vector a -> m (V a)
 mkV n xs | dxs == n = pure $ V xs
@@ -46,7 +57,7 @@ dim (V vv) = V.length vv
 {-# inline dim #-}
 
 foldrWithKey :: (Int -> a -> b -> b) -> b -> V a -> b
-foldrWithKey f z vv = foldr ins z $ zip (fromList [0..]) vv where
+foldrWithKey f z vv = foldr ins z $ zipV (fromListV [0..]) vv where
   ins (i, x) acc = f i x acc
 {-# inline foldrWithKey #-}  
 

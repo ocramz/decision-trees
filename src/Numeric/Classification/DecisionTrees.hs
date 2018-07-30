@@ -27,6 +27,8 @@ import qualified Numeric.Classification.Internal.Datum.Vector as XV
 
 import Numeric.Classification.Exceptions
 
+import Text.Printf (PrintfArg(..), printf)
+
 
 -- | A binary tree.
 --
@@ -40,27 +42,31 @@ unfoldTree :: (t -> Either a (d, t, t)) -> t -> Tree d a
 unfoldTree f x =
   either Leaf (\(d, l, r) -> Node d (unfoldTree f l) (unfoldTree f r) ) (f x)
 
+drawDecisionTree :: (Show a, PrintfArg a2) =>
+                    XV.FeatureLabels
+                 -> TOptions
+                 -> Tree (TNData a2) a
+                 -> String
+drawDecisionTree fls opts = drawTree (nodeLabel fls opts)
 
-drawTree :: Show a => Tree d a -> String
-drawTree = unlines . draw
+drawTree :: Show a => (d -> String) -> Tree d a -> String
+drawTree fnode = unlines . draw
   where
     draw t = case t of
       (Leaf a) ->
-        "|" : pad "`- " "   " [show a] -- (draw a)
-      (Node _ tl tr) ->
-        "|" : pad "+- " "|  " (draw tl) ++ draw tr
+        "|" : pad "`- " "   " [show a] 
+      (Node d tl tr) ->
+        "|" : fnode d : pad "+- " "|  " (draw tl) ++ draw tr
     pad f other = zipWith (++) (f : repeat other)
 
--- draw :: Tree String -> [String]
--- draw (Node x ts0) = lines x ++ drawSubTrees ts0
---   where
---     drawSubTrees [] = []
---     drawSubTrees [t] =
---         "|" : shift "`- " "   " (draw t)
---     drawSubTrees (t:ts) =
---         "|" : shift "+- " "|  " (draw t) ++ drawSubTrees ts
---     shift first other = zipWith (++) (first : repeat other)
-
+nodeLabel :: PrintfArg a =>
+             XV.FeatureLabels
+          -> TOptions
+          -> TNData a
+          -> String
+nodeLabel fls (TOptions _ _ ord) (TNData j t) = expr where
+  label = XV.lookupFeatureLabelUnsafe j fls
+  expr = unwords [printf "%.2f" t, show ord, label]
 
 
 
@@ -222,7 +228,10 @@ mean xs = sum xs / n where
 
 
 -- | A well-defined Ordering, for strict half-plane separation
-data Order = LessThan | GreaterOrEqual deriving (Eq, Show, Ord, Enum, Bounded)
+data Order = LessThan | GreaterOrEqual deriving (Eq, Ord, Enum, Bounded)
+instance Show Order where
+  show LessThan = "<"
+  show GreaterOrEqual = ">="
 
 fromOrder :: Ord a => Order -> (a -> a -> Bool)
 fromOrder o = case o of

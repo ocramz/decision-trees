@@ -4,11 +4,13 @@ module Numeric.Classification (
   -- * Dataset
   , D.Dataset(..), D.fromListWith -- D.showDsTree,
   -- * Data point
-    , X.V(..), X.mkV, (X.!), X.indexUnsafe, X.dim, X.toList, X.fromList
+    , X.V(..), X.mkV, (X.!), X.indexUnsafe, X.dim, X.toListV, X.fromListV
+    , X.FeatureLabels(..)
+    -- , X.lookupFeatureLabel
   -- ** Helpers
   , entropyR, gini
   -- **
-  , drawTree
+  , drawDecisionTree
   )
   where
 
