@@ -66,7 +66,10 @@ dataSplitDecision :: (a -> Bool) -> Int -> (V a -> Bool)
 dataSplitDecision p j dat = p (dat `indexUnsafe` j)
 
 allComponents :: V (a -> Bool) -> V a -> Bool
-allComponents ps dat = all (== True) $ ps <*> dat 
+allComponents ps dat = all (== True) $ f <$> vps where
+  vps = zipV ps dat
+  f (p, vi) = p vi
+-- allComponents ps dat = all (== True) $ ps <*> dat 
 
 
 -- | Vectors with measurable entries

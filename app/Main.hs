@@ -41,7 +41,9 @@ main = do
   -- print tr
   putStrLn ""
   putStrLn $ show cliopts
-  putStrLn $ drawDecisionTree irisLabels opts $ tr --  entropyR <$> tr -- $ void tr
+  let vps = fromListV [(< 6.5), (> 3), (< 2), (< 1)]
+  putStrLn $ show $ partitionJoint vps ivDs
+  -- putStrLn $ drawDecisionTree irisLabels opts $ tr --  entropyR <$> tr -- $ void tr
 
 
 

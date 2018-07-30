@@ -1,6 +1,7 @@
 module Numeric.Classification (
   -- * Tree
   Tree(..), growTree, TOptions(..), Order(..), TNData(..), partition
+  , partitionJoint
   -- * Dataset
   , D.Dataset(..), D.fromListWith -- D.showDsTree,
   -- * Data point

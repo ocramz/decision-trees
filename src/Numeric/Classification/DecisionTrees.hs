@@ -193,7 +193,15 @@ partition :: (Foldable t, Ord k) =>
            -> (Dataset k [XV.V a], Dataset k [XV.V a])
 partition p j ds@Dataset{} = foldrWithKey insf (empty, empty) ds where
   insf k lrow (l, r) = (insert k lp l, insert k rp r) where    
-    (lp, rp) = partition1 (XV.dataSplitDecision p j) lrow 
+    (lp, rp) = partition1 (XV.dataSplitDecision p j) lrow
+
+partitionJoint :: (Ord k, Foldable t) =>
+                  XV.V (a -> Bool)  -- ^ Joint decision function
+               -> Dataset k (t (XV.V a))
+               -> (Dataset k [XV.V a], Dataset k [XV.V a])
+partitionJoint ps ds@Dataset{} = foldrWithKey insf (empty, empty) ds where
+  insf k lrow (l, r) = (insert k lp l, insert k rp r) where    
+    (lp, rp) = partition1 (XV.allComponents ps) lrow     
 
 -- | Partition a Foldable in two lists according to a predicate
 partition1 :: Foldable t => (a -> Bool) -> t a -> ([a], [a])
