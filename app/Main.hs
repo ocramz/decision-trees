@@ -34,11 +34,13 @@ main = do
   ivs <- traverse irisKV iris 
   let ivDs = fromListWith (++) ivs
       tjs = [(j, t) | j <- [0..3], t <- [0, bindx .. 10]]
-      opts = TOptions minls maxtd LessThan
+      opts = TOptions maxtd minls LessThan
   -- print ivDs
   -- print $ uniques round ivDs
       tr = growTree opts tjs ivDs
   -- print tr
+  putStrLn ""
+  putStrLn $ show opts
   putStrLn $ drawDecisionTree irisLabels opts $ entropyR <$> tr -- $ void tr
 
 
@@ -64,7 +66,7 @@ cliOptions = CLIOptions <$>
   <> short 'd'
   <> help "Maximum tree depth"
   <> showDefault
-  <> value 10
+  <> value 5
   <> metavar "INT" ) <*>
   option auto (
   long "bin-size"
