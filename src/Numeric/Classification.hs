@@ -1,7 +1,7 @@
 module Numeric.Classification (
   -- * Tree
   Tree(..), growTree, TOptions(..), Order(..), TNData(..), partition
-  , partitionJoint
+  -- , partitionJoint
   -- * Dataset
   , D.Dataset(..), D.fromListWith -- D.showDsTree,
   , D.mlClass, D.sizeClasses
