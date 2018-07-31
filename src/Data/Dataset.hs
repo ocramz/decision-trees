@@ -16,6 +16,9 @@ import Control.Monad.Primitive
 import Control.Monad
 import Data.Maybe (maybeToList)
 
+import Control.Monad.Catch (MonadThrow(..))
+import Numeric.Classification.Exceptions
+
 -- | Labeled dataset represented as a 'Map'. The map keys are the class labels
 newtype Dataset k a = Dataset { unDataset :: M.Map k a } deriving (Eq, Show, Functor, Foldable, Traversable)
 
@@ -86,11 +89,16 @@ choosing a set S of M unique random samples from a population of size N:
 
 
 
-sampleIM :: PrimMonad m => IM.IntMap a -> Int -> Gen (PrimState m) -> m [a]
-sampleIM im nsamples gen = do
-  let n = IM.size im
-  ixs <- S.toList <$> sampleUniques n nsamples gen 
-  pure $ mconcat . maybeToList $ traverse (`IM.lookup` im) ixs
+sampleNoReplace ::
+  (MonadThrow m, PrimMonad m, Foldable t) => t (IM.Key, a) -> Int -> Gen (PrimState m) -> m [a]
+sampleNoReplace iml nsamples gen
+  | nsamples > n = throwM $ DimMismatchE "sampleIM" nsamples n
+  | otherwise = do
+      ixs <- S.toList <$> sampleUniques n nsamples gen 
+      pure $ mconcat . maybeToList $ traverse (`IM.lookup` im) ixs
+        where
+          im = IM.fromList $ F.toList iml
+          n = IM.size im 
 
 -- | Sample without replacement
 sampleUniques :: PrimMonad m =>
