@@ -79,3 +79,6 @@ bootstrap :: (Indexed f, PrimMonad m, Ix f ~ Int) =>
 bootstrap ds@Dataset{} nsamples nboot gen = do 
   dss <- traverse (bootstrapNP nsamples nboot gen) ds
   pure $ sequenceA dss
+
+
+-- | test
