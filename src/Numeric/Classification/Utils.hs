@@ -16,23 +16,25 @@ import Data.Maybe (maybeToList)
 
 -- | Sample with replacement
 resample :: PrimMonad m => Int -> IM.IntMap b -> Gen (PrimState m) -> m [b]
-resample nsamples im gen = do
-  ixs <- replicateM nsamples (uniformR (0, n - 1) gen)
-  pure $ lookups im ixs
-  where
-    n = IM.size im
+resample nsamples im gen = lookups (resampleIxs nsamples gen) im
 
 -- | Sample without replacement : return a list of at most M unique random samples from an indexed map of size N : O(N)
 sample :: PrimMonad m => Int -> IM.IntMap b -> Gen (PrimState m) -> m [b]
-sample nsamples im gen = do
-  ixs <- S.toList <$> sampleUniques nsamples gen n
-  pure $ lookups im ixs
-  where
-    n = IM.size im
+sample nsamples im gen = lookups (sampleIxs nsamples gen) im
 
-lookups :: (Monoid (t b), Traversable t) => IM.IntMap b -> t IM.Key -> t b
-lookups im ixs = mconcat . maybeToList $ traverse (`IM.lookup` im) ixs
+lookups :: (Monad m, Monoid (t b), Traversable t) =>
+           (Int -> m (t IM.Key))
+        -> IM.IntMap b
+        -> m (t b)
+lookups f im = do
+  ixs <- f (IM.size im)
+  pure $ mconcat . maybeToList $ traverse (`IM.lookup` im) ixs -- lookups im ixs
 
+resampleIxs :: PrimMonad m => Int -> Gen (PrimState m) -> Int -> m [Int]
+resampleIxs nsamples gen n = replicateM nsamples (uniformR (0, n - 1) gen)
+
+sampleIxs :: PrimMonad m => Int -> Gen (PrimState m) -> Int -> m [Int]
+sampleIxs nsamples gen n = S.toList <$> sampleUniques nsamples gen n
 
 
 
