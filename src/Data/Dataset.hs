@@ -7,7 +7,12 @@ import Data.Ord (comparing)
 import qualified Data.Map.Strict as M (Map(..), empty, fromList, toList, fromListWith, mapWithKey, foldl', foldrWithKey, foldlWithKey', insert, lookup)
 import qualified Data.Map.Internal.Debug as M (showTree)
 import qualified Data.IntMap.Strict as IM
+import qualified Data.Set as S
 
+import System.Random.MWC
+import Control.Monad.Primitive
+
+import Numeric.Classification.Utils (Indexed(..), bootstrapNP)
 
 -- | Labeled dataset represented as a 'Map'. The map keys are the class labels
 newtype Dataset k a = Dataset { unDataset :: M.Map k a } deriving (Eq, Show, Functor, Foldable, Traversable)
@@ -61,14 +66,4 @@ probClasses :: (Fractional prob, Foldable t) => Dataset k (t a) -> M.Map k prob
 probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
 
 
-
-
-
-
-
-
-
-
-
-
-
+-- * Bootstrap 

@@ -15,6 +15,19 @@ import Data.Maybe (maybeToList)
 -- import Control.Monad.Catch (MonadThrow(..))
 -- import Numeric.Classification.Exceptions
 
+-- * Bootstrap
+
+-- | Non-parametric bootstrap
+bootstrapNP :: (Indexed f, PrimMonad m, Ix f ~ Int) =>
+               Int  -- ^ Number of samples
+            -> Int  -- ^ Number of bootstrap resamples
+            -> f a  
+            -> Gen (PrimState m)
+            -> m [[a]]
+bootstrapNP nsamples nboot mm gen = replicateM nboot (resample nsamples mm gen)
+
+-- * 
+
 -- | Sample with replacement
 resample :: (Indexed f, PrimMonad m, Ix f ~ Int) =>
             Int -> f b -> Gen (PrimState m) -> m [b]
@@ -29,9 +42,22 @@ lookups :: (Monad m, Monoid (t b), Traversable t, Indexed f) =>
            (Int -> m (t (Ix f)))  -- ^ Sampling function
         -> f b
         -> m (t b)
-lookups f im = do
-  ixs <- f (length im)
-  pure $ mconcat . maybeToList $ traverse (`ix` im) ixs 
+lookups f mm = do
+  ixs <- f (length mm)
+  pure $ mconcat . maybeToList $ traverse (`ix` mm) ixs
+
+-- | Lookup a random subset and its complement
+lookups2 :: (Monad m, Monoid (t b), Traversable t, Indexed f) =>
+            (Int -> m (t (Ix f), t (Ix f)))
+         -> f b
+         -> m (t b, t b)
+lookups2 f mm = do
+  (ixl, ixr) <- f (length mm)
+  let lookupf = mconcat . maybeToList . traverse (`ix` mm)
+  pure (lookupf ixl, lookupf ixr)
+  
+
+  
 
 resampleIxs :: PrimMonad m => Int -> Gen (PrimState m) -> Int -> m [Int]
 resampleIxs nsamples gen n = replicateM nsamples (uniformR (0, n - 1) gen)
@@ -59,7 +85,7 @@ randomSplitBernoulli :: PrimMonad m =>
              -> m (S.Set Int, S.Set Int)
 randomSplitBernoulli p n gen = foldM insf (S.empty, S.empty) [0.. n-1] where
   insf (sl, sr) i = do
-    c <- bernoulli p gen -- coinFlip gen
+    c <- bernoulli p gen 
     pure $ if c then
       (S.insert i sl, sr)
       else
