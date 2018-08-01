@@ -2,7 +2,8 @@
 module Numeric.Classification.Utils where
 
 -- import qualified Data.Foldable as F (maximumBy, foldl', toList)
-import qualified Data.Set as S
+import qualified Data.IntSet as SI
+-- import qualified Data.Set as S
 import qualified Data.IntMap.Strict as IM
 
 import System.Random.MWC
@@ -46,15 +47,15 @@ lookups f mm = do
   ixs <- f (length mm)
   pure $ mconcat . maybeToList $ traverse (`ix` mm) ixs
 
--- | Lookup a random subset and its complement
-lookups2 :: (Monad m, Monoid (t b), Traversable t, Indexed f) =>
-            (Int -> m (t (Ix f), t (Ix f)))
-         -> f b
-         -> m (t b, t b)
-lookups2 f mm = do
-  (ixl, ixr) <- f (length mm)
-  let lookupf = mconcat . maybeToList . traverse (`ix` mm)
-  pure (lookupf ixl, lookupf ixr)
+-- -- | Lookup a random subset and its complement
+-- lookups2 :: (Monad m, Monoid (t b), Traversable t, Indexed f) =>
+--             (Int -> m (t (Ix f), t (Ix f)))
+--          -> f b
+--          -> m (t b, t b)
+-- lookups2 f mm = do
+--   (ixl, ixr) <- f (length mm)
+--   let lookupf = mconcat . maybeToList . traverse (`ix` mm)
+--   pure (lookupf ixl, lookupf ixr)
   
 
   
@@ -63,18 +64,18 @@ resampleIxs :: PrimMonad m => Int -> Gen (PrimState m) -> Int -> m [Int]
 resampleIxs nsamples gen n = replicateM nsamples (uniformR (0, n - 1) gen)
 
 sampleIxs :: PrimMonad m => Int -> Gen (PrimState m) -> Int -> m [Int]
-sampleIxs nsamples gen n = S.toList <$> sampleUniques nsamples gen n
+sampleIxs nsamples gen n = SI.toList <$> sampleUniques nsamples gen n
 
 -- | Random split based on extracting 'm' unique entries from a set of size 'n > m'
 randomSplit :: PrimMonad m =>
                Int   -- ^ Number of samples
             -> Int   -- ^ Size of universe set
             -> Gen (PrimState m)
-            -> m (S.Set Int, S.Set Int)
+            -> m (SI.IntSet, SI.IntSet)
 randomSplit nsamples n gen = do
   srand <- sampleUniques nsamples gen n
-  let s0 = S.fromList [0 .. n - 1]
-      sDiff = s0 `S.difference` srand
+  let s0 = SI.fromList [0 .. n - 1]
+      sDiff = s0 `SI.difference` srand
   pure (srand, sDiff)
 
 -- | Stochastic random split of a set of size 'n', based on a Bernoulli trial of parameter '0 <= p <= 1'; /on average/, m = p * n samples will be inserted in the left set, and n - m will be inserted in the right one.
@@ -82,14 +83,14 @@ randomSplitBernoulli :: PrimMonad m =>
                 Double  -- ^ Parameter of Bernoulli trial
              -> Int
              -> Gen (PrimState m)
-             -> m (S.Set Int, S.Set Int)
-randomSplitBernoulli p n gen = foldM insf (S.empty, S.empty) [0.. n-1] where
+             -> m (SI.IntSet, SI.IntSet)
+randomSplitBernoulli p n gen = foldM insf (SI.empty, SI.empty) [0.. n-1] where
   insf (sl, sr) i = do
     c <- bernoulli p gen 
     pure $ if c then
-      (S.insert i sl, sr)
+      (SI.insert i sl, sr)
       else
-      (sl, S.insert i sr)
+      (sl, SI.insert i sr)
 
 
 
@@ -103,17 +104,17 @@ sampleUniques :: PrimMonad m =>
                  Int   -- ^ # of unique numbers to sample (M)
               -> Gen (PrimState m)
               -> Int   -- ^ Population size (N)
-              -> m (S.Set Int)  
-sampleUniques nsamples gen n = foldM sample1 S.empty [p .. n - 1] where
+              -> m SI.IntSet   
+sampleUniques nsamples gen n = foldM sample1 SI.empty [p .. n - 1] where
   p = n - nsamples + 1
   sample1 s j = do
     t <- uniformR (0, j) gen
     let set' =
-          if not (S.member t s)
+          if not (SI.member t s)
           then
-            S.insert t s
+            SI.insert t s
           else
-            S.insert j s
+            SI.insert j s
     return set'
 
 -- stest n ntot = withSystemRandom . asGenIO $ \g -> do

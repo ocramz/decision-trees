@@ -69,12 +69,13 @@ probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
 
 -- * Bootstrap 
 
--- | Nonparametric bootstrap: each class is resampled 
-bootstrap :: (Indexed t, PrimMonad m, Ix t ~ Int) =>
-             Dataset k (t a)
-          -> Int
-          -> Int
+-- | Nonparametric bootstrap: each class is resampled (i.e. sampled with replacement)
+bootstrap :: (Indexed f, PrimMonad m, Ix f ~ Int) =>
+             Dataset k (f a)
+          -> Int  -- ^ Number of samples
+          -> Int  -- ^ Number of bootstrap resamples
           -> Gen (PrimState m)
-          -> m (Dataset k [[a]])
-bootstrap ds@Dataset{} nsamples nboot gen =
-  traverse (bootstrapNP nsamples nboot gen) ds
+          -> m [Dataset k [a]]
+bootstrap ds@Dataset{} nsamples nboot gen = do 
+  dss <- traverse (bootstrapNP nsamples nboot gen) ds
+  pure $ sequenceA dss
