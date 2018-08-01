@@ -6,6 +6,7 @@ import qualified Data.Set as S
 import qualified Data.IntMap.Strict as IM
 
 import System.Random.MWC
+import System.Random.MWC.Distributions
 import Control.Monad.Primitive
 
 import Control.Monad (foldM, replicateM)
@@ -25,7 +26,7 @@ sample :: (Indexed f, PrimMonad m, Ix f ~ Int) =>
 sample nsamples im gen = lookups (sampleIxs nsamples gen) im
 
 lookups :: (Monad m, Monoid (t b), Traversable t, Indexed f) =>
-           (Int -> m (t (Ix f)))
+           (Int -> m (t (Ix f)))  -- ^ Sampling function
         -> f b
         -> m (t b)
 lookups f im = do
@@ -37,6 +38,32 @@ resampleIxs nsamples gen n = replicateM nsamples (uniformR (0, n - 1) gen)
 
 sampleIxs :: PrimMonad m => Int -> Gen (PrimState m) -> Int -> m [Int]
 sampleIxs nsamples gen n = S.toList <$> sampleUniques nsamples gen n
+
+-- | Random split based on extracting 'm' unique entries from a set of size 'n > m'
+randomSplit :: PrimMonad m =>
+               Int   -- ^ Number of samples
+            -> Int   -- ^ Size of universe set
+            -> Gen (PrimState m)
+            -> m (S.Set Int, S.Set Int)
+randomSplit nsamples n gen = do
+  srand <- sampleUniques nsamples gen n
+  let s0 = S.fromList [0 .. n - 1]
+      sDiff = s0 `S.difference` srand
+  pure (srand, sDiff)
+
+-- | Stochastic random split of a set of size 'n', based on a Bernoulli trial of parameter '0 <= p <= 1'; /on average/, m = p * n samples will be inserted in the left set, and n - m will be inserted in the right one.
+randomSplitBernoulli :: PrimMonad m =>
+                Double  -- ^ Parameter of Bernoulli trial
+             -> Int
+             -> Gen (PrimState m)
+             -> m (S.Set Int, S.Set Int)
+randomSplitBernoulli p n gen = foldM insf (S.empty, S.empty) [0.. n-1] where
+  insf (sl, sr) i = do
+    c <- bernoulli p gen -- coinFlip gen
+    pure $ if c then
+      (S.insert i sl, sr)
+      else
+      (sl, S.insert i sr)
 
 
 
@@ -75,11 +102,9 @@ class Foldable f => Indexed f where
   type Ix f :: *
   ix :: Ix f -> f a -> Maybe a
 
-
 instance Indexed [] where
   type Ix [] = Int
   ix = indexSafe
-
 
 instance Indexed IM.IntMap where
   type Ix IM.IntMap = IM.Key
