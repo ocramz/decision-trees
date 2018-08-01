@@ -30,7 +30,7 @@ lookups :: (Monad m, Monoid (t b), Traversable t, Indexed f) =>
         -> m (t b)
 lookups f im = do
   ixs <- f (length im)
-  pure $ mconcat . maybeToList $ traverse (`ix` im) ixs -- lookups im ixs
+  pure $ mconcat . maybeToList $ traverse (`ix` im) ixs 
 
 resampleIxs :: PrimMonad m => Int -> Gen (PrimState m) -> Int -> m [Int]
 resampleIxs nsamples gen n = replicateM nsamples (uniformR (0, n - 1) gen)
@@ -51,7 +51,7 @@ sampleUniques :: PrimMonad m =>
               -> Gen (PrimState m)
               -> Int   -- ^ Population size (N)
               -> m (S.Set Int)  
-sampleUniques nsamples gen n = foldM sample1 S.empty [p .. n] where
+sampleUniques nsamples gen n = foldM sample1 S.empty [p .. n - 1] where
   p = n - nsamples + 1
   sample1 s j = do
     t <- uniformR (0, j) gen
@@ -70,8 +70,7 @@ sampleUniques nsamples gen n = foldM sample1 S.empty [p .. n] where
 
 
 
--- * Playground
-
+-- | Indexable containers
 class Foldable f => Indexed f where
   type Ix f :: *
   ix :: Ix f -> f a -> Maybe a
