@@ -15,20 +15,22 @@ import Data.Maybe (maybeToList)
 -- import Numeric.Classification.Exceptions
 
 -- | Sample with replacement
-resample :: PrimMonad m => Int -> IM.IntMap b -> Gen (PrimState m) -> m [b]
+resample :: (Indexed f, PrimMonad m, Ix f ~ Int) =>
+            Int -> f b -> Gen (PrimState m) -> m [b]
 resample nsamples im gen = lookups (resampleIxs nsamples gen) im
 
 -- | Sample without replacement : return a list of at most M unique random samples from an indexed map of size N : O(N)
-sample :: PrimMonad m => Int -> IM.IntMap b -> Gen (PrimState m) -> m [b]
+sample :: (Indexed f, PrimMonad m, Ix f ~ Int) =>
+          Int -> f b -> Gen (PrimState m) -> m [b]
 sample nsamples im gen = lookups (sampleIxs nsamples gen) im
 
-lookups :: (Monad m, Monoid (t b), Traversable t) =>
-           (Int -> m (t IM.Key))
-        -> IM.IntMap b
+lookups :: (Monad m, Monoid (t b), Traversable t, Indexed f) =>
+           (Int -> m (t (Ix f)))
+        -> f b
         -> m (t b)
 lookups f im = do
-  ixs <- f (IM.size im)
-  pure $ mconcat . maybeToList $ traverse (`IM.lookup` im) ixs -- lookups im ixs
+  ixs <- f (length im)
+  pure $ mconcat . maybeToList $ traverse (`ix` im) ixs -- lookups im ixs
 
 resampleIxs :: PrimMonad m => Int -> Gen (PrimState m) -> Int -> m [Int]
 resampleIxs nsamples gen n = replicateM nsamples (uniformR (0, n - 1) gen)
@@ -74,13 +76,16 @@ class Foldable f => Indexed f where
   type Ix f :: *
   ix :: Ix f -> f a -> Maybe a
 
+
 instance Indexed [] where
   type Ix [] = Int
   ix = indexSafe
 
+
 instance Indexed IM.IntMap where
   type Ix IM.IntMap = IM.Key
   ix = IM.lookup
+
 
 indexSafe :: Int -> [a] -> Maybe a
 indexSafe i ll | i < length ll = Just $ ll !! i
