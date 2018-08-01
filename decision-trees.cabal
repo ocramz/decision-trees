@@ -23,6 +23,7 @@ library
   other-modules:       Numeric.Classification.Internal.Datum
                        Numeric.Classification.Internal.Datum.Vector
                        Numeric.Classification.Exceptions
+                       Numeric.Classification.Utils
                        Numeric.InformationTheory
                        Data.Histogram
                        Data.Dataset
