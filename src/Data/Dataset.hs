@@ -1,4 +1,5 @@
 {-# language DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# language TypeFamilies #-}
 module Data.Dataset where
 
 import qualified Data.Foldable as F (maximumBy, foldl', toList)
@@ -67,3 +68,13 @@ probClasses ds = (\n -> n / fromIntegral (size ds)) <$> sizeClasses ds
 
 
 -- * Bootstrap 
+
+-- | Nonparametric bootstrap: each class is resampled 
+bootstrap :: (Indexed t, PrimMonad m, Ix t ~ Int) =>
+             Dataset k (t a)
+          -> Int
+          -> Int
+          -> Gen (PrimState m)
+          -> m (Dataset k [[a]])
+bootstrap ds@Dataset{} nsamples nboot gen =
+  traverse (bootstrapNP nsamples nboot gen) ds

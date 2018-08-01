@@ -21,10 +21,10 @@ import Data.Maybe (maybeToList)
 bootstrapNP :: (Indexed f, PrimMonad m, Ix f ~ Int) =>
                Int  -- ^ Number of samples
             -> Int  -- ^ Number of bootstrap resamples
-            -> f a  
             -> Gen (PrimState m)
+            -> f a  -- ^ Dataset
             -> m [[a]]
-bootstrapNP nsamples nboot mm gen = replicateM nboot (resample nsamples mm gen)
+bootstrapNP nsamples nboot gen mm = replicateM nboot (resample nsamples mm gen)
 
 -- * 
 
