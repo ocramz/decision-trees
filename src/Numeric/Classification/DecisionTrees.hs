@@ -202,9 +202,10 @@ partition1 p = foldr ins ([], [])  where
                | otherwise = (l , x : r)
 
 
-lt, gte :: Ord a => Int -> a -> (XV.V a -> Bool)
-lt = fromSplit LessThan
-gte = fromSplit GreaterOrEqual
+-- | Infix combinators: "is the value of feature 'j' <smaller|greater or equal> than threshold 't' ?" 
+(@<), (@>=) :: Ord a => Int -> a -> (XV.V a -> Bool)
+(@<) = fromSplit LessThan
+(@>=) = fromSplit GreaterOrEqual
 
 fromSplit :: Ord a => Order -> Int -> a -> (XV.V a -> Bool)
 fromSplit o j t v = t `ordf` t0
