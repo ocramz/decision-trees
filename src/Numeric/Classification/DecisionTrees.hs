@@ -28,10 +28,6 @@ import Numeric.Classification.Exceptions
 import Text.Printf (PrintfArg(..), printf)
 
 
--- sample ran s gen = do
---   i <- uniformR ran gen
-
-
 
 -- | A binary tree.
 --
@@ -74,7 +70,7 @@ nodeLabel fls (TOptions _ _ ord) (TNData j t) = expr where
 
 
 
--- | Tree state : list of candidate dataset cuts and dataset
+-- | Tree state : list of candidate dataset cuts (feature #, level)
 data TState k a  = TState {
     tsFeatCuts :: S.Set (Int, a)
   , tsDataset :: Dataset k [XV.V a] } 
@@ -145,7 +141,7 @@ maxInfoGainSplit :: (Ord k, Ord a, Eq a) =>
                  -> (Int, a, TState k a, TState k a)
 maxInfoGainSplit decision (TState tjs ds) = (jstar, tstar, TState tjs' dsl, TState tjs' dsr) where
   tjs' = S.delete (jstar, tstar) tjs  -- See Note (OPTIMIZATIONS maxInfoGainSPlit)
-  (jstar, tstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog `map` (S.toList tjs)  
+  (jstar, tstar, _, dsl, dsr) = F.maximumBy (comparing third5) $ infog `map` S.toList tjs
   infog (j, t) = (j, t, h, dsl, dsr) where
     (h, dsl, dsr) = infoGainR (decision t) j ds
 
@@ -206,28 +202,16 @@ partition1 p = foldr ins ([], [])  where
                | otherwise = (l , x : r)
 
 
+lt, gte :: Ord a => Int -> a -> (XV.V a -> Bool)
+lt = fromSplit LessThan
+gte = fromSplit GreaterOrEqual
 
+fromSplit :: Ord a => Order -> Int -> a -> (XV.V a -> Bool)
+fromSplit o j t v = t `ordf` t0
+  where 
+    t0 = v `XV.indexUnsafe` j
+    ordf = fromOrder o
 
--- | All (j, t) cuts for a given class.
-allCuts :: (Traversable f, Applicative v, Foldable v, Fractional a, Ord a) => a -> a -> f (v a) -> [(Int, a)]
-allCuts xmin dx xs = concatMap ixed vls where
-  vls = zip [0..] $ F.toList $ featureBinnedMeans xmin dx xs
-  ixed (i, xs) = zip (repeat i) xs
-
-featureBinnedMeans :: (Traversable t, Applicative v, Fractional a, Ord a) =>
-                      a  -- ^ Min value
-                   -> a  -- ^ Bin width
-                   -> t (v a) 
-                   -> v [a]
-featureBinnedMeans xmin dx = featureSummary binnedMeans where
-  binnedMeans xs = F.toList $ mean <$> fromFoldableAppendIM (bin xmin dx) xs
-
-fromFoldableAppendIM :: Foldable t => (a -> IM.Key) -> t a -> IM.IntMap [a]
-fromFoldableAppendIM kf xs = IM.fromListWith (++) $ map (kf &&& (: [])) $ F.toList xs
-
-mean :: (Fractional a, Foldable t) => t a -> a
-mean xs = sum xs / n where
-  n = fromIntegral $ length xs
 
 
 
@@ -241,6 +225,10 @@ fromOrder :: Ord a => Order -> (a -> a -> Bool)
 fromOrder o = case o of
   LessThan -> (<)
   _ -> (>=)
+
+
+
+
 
 
 -- * General purpose combinators
